@@ -1,0 +1,2252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MOB Guard - Man Overboard Security System</title>
+    
+    <!-- 
+    ============================================================================
+    MOB GUARD - MAN OVERBOARD SECURITY SYSTEM
+    ============================================================================
+    
+    DEPLOYMENT: This is a static HTML application designed for GitHub Pages.
+    No server-side processing required. All data is stored in localStorage.
+    
+    BACKEND INTEGRATION GUIDE:
+    To connect a real backend later:
+    1. Replace receiveLoRaPacket() fetch call with your actual API endpoint
+    2. Change localStorage to fetch()/POST to your backend
+    3. Update authenticateUser() to validate against your auth service
+    4. Modify exportLogs() to download from your backend API
+    
+    DEMO CREDENTIALS:
+    - Admin: admin / admin123
+    - Viewer: viewer / viewer123
+    
+    ============================================================================
+    -->
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" 
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" 
+          crossorigin=""/>
+    
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* ============================================================================
+           CSS VARIABLES - Design System
+           ============================================================================ */
+        :root {
+            /* Primary Colors */
+            --primary: #1a3a5c;
+            --secondary: #0d2137;
+            --accent: #00d4aa;
+            --text-primary: #ffffff;
+            --text-secondary: #8b9db3;
+            
+            /* Status Colors */
+            --status-safe: #00d4aa;
+            --status-warning: #f59e0b;
+            --status-alert: #ef4444;
+            --status-info: #3b82f6;
+            
+            /* Map Colors */
+            --map-track: #00d4aa;
+            --map-alert: #ef4444;
+            --map-ship: #ffffff;
+            
+            /* Spacing */
+            --spacing-xs: 0.25rem;
+            --spacing-sm: 0.5rem;
+            --spacing-md: 1rem;
+            --spacing-lg: 1.5rem;
+            --spacing-xl: 2rem;
+            --spacing-2xl: 3rem;
+            
+            /* Typography */
+            --font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            --font-mono: 'Consolas', 'Monaco', 'Courier New', monospace;
+            
+            /* Shadows */
+            --shadow-sm: 0 2px 4px rgba(0,0,0,0.2);
+            --shadow-md: 0 4px 6px rgba(0,0,0,0.3);
+            --shadow-lg: 0 10px 25px rgba(0,0,0,0.5);
+            
+            /* Transitions */
+            --transition-fast: 200ms ease;
+            --transition-normal: 300ms ease;
+            --transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* ============================================================================
+           RESET & BASE STYLES
+           ============================================================================ */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* ============================================================================
+           HEADER / NAVIGATION
+           ============================================================================ */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 64px;
+            background: rgba(13, 33, 55, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 var(--spacing-lg);
+            z-index: 1000;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--accent);
+            text-decoration: none;
+            transition: filter var(--transition-fast);
+        }
+
+        .logo:hover {
+            filter: brightness(1.2);
+        }
+
+        .logo i {
+            font-size: 1.75rem;
+        }
+
+        .nav {
+            display: flex;
+            gap: var(--spacing-xl);
+        }
+
+        .nav-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+            padding: var(--spacing-sm) 0;
+            position: relative;
+            transition: color var(--transition-fast);
+        }
+
+        .nav-link:hover,
+        .nav-link.active {
+            color: var(--text-primary);
+        }
+
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--accent);
+            transition: width var(--transition-fast);
+        }
+
+        .nav-link:hover::after,
+        .nav-link.active::after {
+            width: 100%;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+        }
+
+        .role-badge {
+            padding: var(--spacing-xs) var(--spacing-sm);
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .role-badge.admin {
+            background: var(--accent);
+            color: var(--secondary);
+        }
+
+        .role-badge.viewer {
+            background: var(--status-info);
+            color: white;
+        }
+
+        .logout-btn {
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.2);
+            color: var(--text-secondary);
+            padding: var(--spacing-xs) var(--spacing-sm);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all var(--transition-fast);
+        }
+
+        .logout-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        /* ============================================================================
+           MAIN CONTENT AREA
+           ============================================================================ */
+        .main-content {
+            margin-top: 64px;
+            padding: var(--spacing-lg);
+            min-height: calc(100vh - 64px);
+        }
+
+        /* ============================================================================
+           STATUS BANNER
+           ============================================================================ */
+        .status-banner {
+            width: 100%;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--spacing-md);
+            border-radius: 8px;
+            margin-bottom: var(--spacing-lg);
+            transition: all var(--transition-normal);
+        }
+
+        .status-banner.safe {
+            background: linear-gradient(135deg, rgba(0, 212, 170, 0.2) 0%, rgba(0, 212, 170, 0.1) 100%);
+            border: 2px solid var(--status-safe);
+        }
+
+        .status-banner.warning {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(245, 158, 11, 0.1) 100%);
+            border: 2px solid var(--status-warning);
+        }
+
+        .status-banner.alert {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.3) 0%, rgba(239, 68, 68, 0.1) 100%);
+            border: 2px solid var(--status-alert);
+            animation: pulse-alert 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse-alert {
+            0%, 100% { 
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+                border-color: var(--status-alert);
+            }
+            50% { 
+                box-shadow: 0 0 20px 10px rgba(239, 68, 68, 0.2);
+                border-color: #ff6666;
+            }
+        }
+
+        .status-icon {
+            font-size: 2rem;
+        }
+
+        .status-banner.safe .status-icon {
+            color: var(--status-safe);
+        }
+
+        .status-banner.warning .status-icon {
+            color: var(--status-warning);
+        }
+
+        .status-banner.alert .status-icon {
+            color: var(--status-alert);
+        }
+
+        .status-text {
+            font-size: 2rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .status-banner.safe .status-text {
+            color: var(--status-safe);
+        }
+
+        .status-banner.warning .status-text {
+            color: var(--status-warning);
+        }
+
+        .status-banner.alert .status-text {
+            color: var(--status-alert);
+        }
+
+        .status-time {
+            margin-left: auto;
+            margin-right: var(--spacing-lg);
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        /* ============================================================================
+           DASHBOARD GRID
+           ============================================================================ */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        @media (max-width: 1200px) {
+            .dashboard-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ============================================================================
+           CARDS
+           ============================================================================ */
+        .card {
+            background: var(--secondary);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: var(--spacing-lg);
+            box-shadow: var(--shadow-md);
+            transition: transform var(--transition-fast), 
+                        box-shadow var(--transition-fast),
+                        border-color var(--transition-fast);
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+            border-color: rgba(255,255,255,0.2);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .card-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            letter-spacing: 1px;
+        }
+
+        .card-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+        }
+
+        .card-icon.teal {
+            background: rgba(0, 212, 170, 0.2);
+            color: var(--accent);
+        }
+
+        .card-icon.blue {
+            background: rgba(59, 130, 246, 0.2);
+            color: var(--status-info);
+        }
+
+        .card-icon.amber {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--status-warning);
+        }
+
+        .card-icon.red {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--status-alert);
+        }
+
+        .card-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: var(--spacing-xs);
+            font-family: var(--font-mono);
+        }
+
+        .card-subtitle {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .card-value.update-flash {
+            animation: flash-update 300ms ease;
+        }
+
+        @keyframes flash-update {
+            0% { color: var(--text-primary); }
+            50% { color: var(--accent); }
+            100% { color: var(--text-primary); }
+        }
+
+        /* Signal Bars */
+        .signal-bars {
+            display: flex;
+            align-items: flex-end;
+            gap: 3px;
+            height: 24px;
+        }
+
+        .signal-bar {
+            width: 6px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 2px;
+            transition: background var(--transition-fast);
+        }
+
+        .signal-bar:nth-child(1) { height: 6px; }
+        .signal-bar:nth-child(2) { height: 10px; }
+        .signal-bar:nth-child(3) { height: 14px; }
+        .signal-bar:nth-child(4) { height: 18px; }
+        .signal-bar:nth-child(5) { height: 22px; }
+
+        .signal-bar.active {
+            background: var(--accent);
+        }
+
+        .signal-bar.active.warning {
+            background: var(--status-warning);
+        }
+
+        .signal-bar.active.critical {
+            background: var(--status-alert);
+        }
+
+        /* ============================================================================
+           MAP CONTAINER
+           ============================================================================ */
+        .map-section {
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .section-title i {
+            color: var(--accent);
+        }
+
+        .map-container {
+            height: 500px;
+            border-radius: 8px;
+            border: 2px solid rgba(255,255,255,0.1);
+            overflow: hidden;
+            position: relative;
+        }
+
+        @media (max-width: 768px) {
+            .map-container {
+                height: 400px;
+            }
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        .map-controls {
+            position: absolute;
+            top: var(--spacing-md);
+            right: var(--spacing-md);
+            z-index: 500;
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+        }
+
+        .map-btn {
+            width: 40px;
+            height: 40px;
+            background: var(--secondary);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            color: var(--text-primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all var(--transition-fast);
+            box-shadow: var(--shadow-md);
+        }
+
+        .map-btn:hover {
+            background: var(--accent);
+            color: var(--secondary);
+            border-color: var(--accent);
+        }
+
+        /* Custom Map Markers */
+        .mob-marker {
+            width: 30px;
+            height: 30px;
+            background: var(--status-alert);
+            border-radius: 50%;
+            border: 3px solid white;
+            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+            animation: mob-pulse 1.5s infinite;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @keyframes mob-pulse {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+
+        .mob-marker i {
+            color: white;
+            font-size: 12px;
+        }
+
+        .ship-marker {
+            width: 24px;
+            height: 24px;
+            background: white;
+            border-radius: 50%;
+            border: 3px solid var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .ship-marker i {
+            color: var(--secondary);
+            font-size: 10px;
+        }
+
+        /* ============================================================================
+           ALERT PANEL
+           ============================================================================ */
+        .alert-panel {
+            position: fixed;
+            bottom: var(--spacing-lg);
+            right: var(--spacing-lg);
+            width: 400px;
+            max-width: calc(100vw - 2rem);
+            background: var(--secondary);
+            border: 2px solid var(--status-alert);
+            border-radius: 8px;
+            padding: var(--spacing-lg);
+            box-shadow: var(--shadow-lg);
+            z-index: 2000;
+            transform: translateX(120%);
+            transition: transform var(--transition-slow);
+        }
+
+        .alert-panel.active {
+            transform: translateX(0);
+        }
+
+        .alert-panel.silenced {
+            border-color: var(--status-warning);
+        }
+
+        .alert-header {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .alert-header i {
+            font-size: 1.5rem;
+            color: var(--status-alert);
+        }
+
+        .alert-panel.silenced .alert-header i {
+            color: var(--status-warning);
+        }
+
+        .alert-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--status-alert);
+        }
+
+        .alert-panel.silenced .alert-title {
+            color: var(--status-warning);
+        }
+
+        .alert-message {
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .alert-time {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .alert-actions {
+            display: flex;
+            gap: var(--spacing-sm);
+        }
+
+        .btn {
+            padding: var(--spacing-sm) var(--spacing-md);
+            border-radius: 4px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all var(--transition-fast);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--spacing-sm);
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: var(--secondary);
+        }
+
+        .btn-primary:hover {
+            filter: brightness(1.1);
+        }
+
+        .btn-danger {
+            background: var(--status-alert);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            filter: brightness(1.1);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.2);
+            color: var(--text-secondary);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--text-primary);
+            color: var(--text-primary);
+        }
+
+        .btn-full {
+            width: 100%;
+        }
+
+        /* ============================================================================
+           HISTORY LOG SECTION
+           ============================================================================ */
+        .history-section {
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .history-controls {
+            display: flex;
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-md);
+            flex-wrap: wrap;
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .filter-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .filter-input {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 4px;
+            padding: var(--spacing-xs) var(--spacing-sm);
+            color: var(--text-primary);
+            font-size: 0.875rem;
+        }
+
+        .filter-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .table-container {
+            overflow-x: auto;
+            max-height: 400px;
+            overflow-y: auto;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+        }
+
+        thead {
+            position: sticky;
+            top: 0;
+            background: var(--secondary);
+            z-index: 10;
+        }
+
+        th {
+            padding: var(--spacing-sm) var(--spacing-md);
+            text-align: left;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        td {
+            padding: var(--spacing-sm) var(--spacing-md);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            font-family: var(--font-mono);
+        }
+
+        tbody tr:hover {
+            background: rgba(255,255,255,0.03);
+        }
+
+        .status-cell {
+            display: inline-block;
+            padding: var(--spacing-xs) var(--spacing-sm);
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-cell.safe {
+            background: rgba(0, 212, 170, 0.2);
+            color: var(--status-safe);
+        }
+
+        .status-cell.warning {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--status-warning);
+        }
+
+        .status-cell.alert {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--status-alert);
+        }
+
+        .rssi-good { color: var(--status-safe); }
+        .rssi-warning { color: var(--status-warning); }
+        .rssi-critical { color: var(--status-alert); }
+
+        /* ============================================================================
+           LOGIN MODAL
+           ============================================================================ */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(5px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 3000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all var(--transition-normal);
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal {
+            background: var(--secondary);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: var(--spacing-xl);
+            width: 100%;
+            max-width: 400px;
+            box-shadow: var(--shadow-lg);
+            transform: translateY(-20px);
+            transition: transform var(--transition-normal);
+        }
+
+        .modal-overlay.active .modal {
+            transform: translateY(0);
+        }
+
+        .modal-header {
+            text-align: center;
+            margin-bottom: var(--spacing-xl);
+        }
+
+        .modal-logo {
+            font-size: 3rem;
+            color: var(--accent);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .modal-subtitle {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .form-group {
+            margin-bottom: var(--spacing-md);
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-bottom: var(--spacing-xs);
+            color: var(--text-secondary);
+        }
+
+        .form-input {
+            width: 100%;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 4px;
+            padding: var(--spacing-sm) var(--spacing-md);
+            color: var(--text-primary);
+            font-size: 1rem;
+            transition: border-color var(--transition-fast);
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .form-input::placeholder {
+            color: rgba(255,255,255,0.3);
+        }
+
+        .form-error {
+            color: var(--status-alert);
+            font-size: 0.875rem;
+            margin-top: var(--spacing-xs);
+            display: none;
+        }
+
+        .form-error.active {
+            display: block;
+        }
+
+        .demo-credentials {
+            background: rgba(0, 212, 170, 0.1);
+            border: 1px solid rgba(0, 212, 170, 0.2);
+            border-radius: 4px;
+            padding: var(--spacing-md);
+            margin-top: var(--spacing-lg);
+        }
+
+        .demo-credentials-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: var(--spacing-sm);
+            letter-spacing: 1px;
+        }
+
+        .demo-credentials-text {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            font-family: var(--font-mono);
+        }
+
+        /* ============================================================================
+           ADMIN-ONLY ELEMENTS
+           ============================================================================ */
+        .admin-only {
+            display: none;
+        }
+
+        body.is-admin .admin-only {
+            display: block;
+        }
+
+        body.is-admin .admin-only.inline {
+            display: inline-flex;
+        }
+
+        /* ============================================================================
+           FOOTER
+           ============================================================================ */
+        .footer {
+            background: var(--secondary);
+            border-top: 1px solid rgba(255,255,255,0.1);
+            padding: var(--spacing-md) var(--spacing-lg);
+            text-align: center;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .footer-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: var(--spacing-sm);
+        }
+
+        /* ============================================================================
+           UTILITY CLASSES
+           ============================================================================ */
+        .hidden {
+            display: none !important;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .mb-0 {
+            margin-bottom: 0;
+        }
+
+        /* Loading spinner */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--secondary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.2);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        /* Reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- ============================================================================
+         HEADER / NAVIGATION
+         ============================================================================ -->
+    <header class="header">
+        <a href="#" class="logo">
+            <i class="fas fa-anchor"></i>
+            <span>MOB GUARD</span>
+        </a>
+        
+        <nav class="nav">
+            <a href="#dashboard" class="nav-link active" data-section="dashboard">
+                <i class="fas fa-tachometer-alt"></i> Dashboard
+            </a>
+            <a href="#map" class="nav-link" data-section="map">
+                <i class="fas fa-map"></i> Map
+            </a>
+            <a href="#history" class="nav-link" data-section="history">
+                <i class="fas fa-history"></i> History
+            </a>
+            <a href="#settings" class="nav-link admin-only" data-section="settings">
+                <i class="fas fa-cog"></i> Settings
+            </a>
+        </nav>
+        
+        <div class="user-info">
+            <span class="role-badge" id="userRole">Viewer</span>
+            <span id="username">Guest</span>
+            <button class="logout-btn" onclick="logout()">
+                <i class="fas fa-sign-out-alt"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- ============================================================================
+         MAIN CONTENT
+         ============================================================================ -->
+    <main class="main-content">
+        <!-- Status Banner -->
+        <div class="status-banner safe" id="statusBanner">
+            <i class="fas fa-check-circle status-icon"></i>
+            <span class="status-text" id="statusText">System Normal</span>
+            <span class="status-time" id="statusTime">Last update: --:--:--</span>
+        </div>
+
+        <!-- Dashboard Grid -->
+        <section id="dashboard" class="dashboard-section">
+            <div class="dashboard-grid">
+                <!-- GPS Position Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">GPS Position</span>
+                        <div class="card-icon teal">
+                            <i class="fas fa-satellite-dish"></i>
+                        </div>
+                    </div>
+                    <div class="card-value" id="gpsCoords">--.-----, --.-----</div>
+                    <div class="card-subtitle">
+                        <span id="satelliteCount">0</span> satellites | 
+                        Fix: <span id="gpsFix">--</span>
+                    </div>
+                </div>
+
+                <!-- Speed & Course Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Speed & Course</span>
+                        <div class="card-icon blue">
+                            <i class="fas fa-compass"></i>
+                        </div>
+                    </div>
+                    <div class="card-value">
+                        <span id="speed">0.0</span> kn
+                        <span style="font-size: 1rem; color: var(--text-secondary);">
+                            @ <span id="course">0</span>°
+                        </span>
+                    </div>
+                    <div class="card-subtitle" id="speedStatus">Stationary</div>
+                </div>
+
+                <!-- Signal Strength Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Signal Strength</span>
+                        <div class="card-icon amber" id="rssiIcon">
+                            <i class="fas fa-signal"></i>
+                        </div>
+                    </div>
+                    <div class="card-value" id="rssiValue">-- dBm</div>
+                    <div class="signal-bars" id="signalBars">
+                        <div class="signal-bar"></div>
+                        <div class="signal-bar"></div>
+                        <div class="signal-bar"></div>
+                        <div class="signal-bar"></div>
+                        <div class="signal-bar"></div>
+                    </div>
+                </div>
+
+                <!-- Beacon Info Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Beacon Status</span>
+                        <div class="card-icon teal">
+                            <i class="fas fa-broadcast-tower"></i>
+                        </div>
+                    </div>
+                    <div class="card-value" id="deviceId">--</div>
+                    <div class="card-subtitle">
+                        Alt: <span id="altitude">0</span>m | 
+                        Last: <span id="lastSeen">--:--:--</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Map Section -->
+        <section id="map" class="map-section">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <i class="fas fa-map-marked-alt"></i>
+                    Tracking Map
+                </h2>
+                <div>
+                    <button class="btn btn-secondary" onclick="simulateMOB()">
+                        <i class="fas fa-exclamation-triangle"></i> Test Alert
+                    </button>
+                    <button class="btn btn-primary admin-only inline" onclick="clearTrack()" style="margin-left: var(--spacing-sm);">
+                        <i class="fas fa-trash"></i> Clear Track
+                    </button>
+                </div>
+            </div>
+            <div class="map-container">
+                <div id="map"></div>
+                <div class="map-controls">
+                    <button class="map-btn" onclick="centerOnMOB()" title="Center on MOB">
+                        <i class="fas fa-crosshairs"></i>
+                    </button>
+                    <button class="map-btn" onclick="centerOnShip()" title="Center on Ship">
+                        <i class="fas fa-ship"></i>
+                    </button>
+                    <button class="map-btn" onclick="toggleFullscreen()" title="Fullscreen">
+                        <i class="fas fa-expand"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- History Section -->
+        <section id="history" class="history-section">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <i class="fas fa-history"></i>
+                    Event History
+                </h2>
+                <div class="history-controls">
+                    <div class="filter-group">
+                        <span class="filter-label">From:</span>
+                        <input type="date" class="filter-input" id="filterFrom">
+                    </div>
+                    <div class="filter-group">
+                        <span class="filter-label">To:</span>
+                        <input type="date" class="filter-input" id="filterTo">
+                    </div>
+                    <div class="filter-group">
+                        <button class="btn btn-secondary" onclick="applyFilters()">
+                            <i class="fas fa-filter"></i> Filter
+                        </button>
+                    </div>
+                    <div class="filter-group">
+                        <button class="btn btn-primary" onclick="exportLogs()">
+                            <i class="fas fa-download"></i> Export CSV
+                        </button>
+                    </div>
+                    <div class="filter-group admin-only">
+                        <button class="btn btn-danger" onclick="clearLogs()">
+                            <i class="fas fa-trash"></i> Clear
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="table-container">
+                <table id="historyTable">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Device ID</th>
+                            <th>Latitude</th>
+                            <th>Longitude</th>
+                            <th>Speed</th>
+                            <th>RSSI</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyBody">
+                        <!-- Dynamic content -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <!-- ============================================================================
+         ALERT PANEL
+         ============================================================================ -->
+    <div class="alert-panel" id="alertPanel">
+        <div class="alert-header">
+            <i class="fas fa-exclamation-circle"></i>
+            <span class="alert-title" id="alertTitle">MAN OVERBOARD</span>
+        </div>
+        <div class="alert-message" id="alertMessage">
+            Emergency alert triggered. Check map for position.
+        </div>
+        <div class="alert-time" id="alertTime">--:--:--</div>
+        <div class="alert-actions">
+            <button class="btn btn-danger btn-full" onclick="acknowledgeAlert()">
+                <i class="fas fa-check"></i> Acknowledge
+            </button>
+        </div>
+    </div>
+
+    <!-- ============================================================================
+         LOGIN MODAL
+         ============================================================================ -->
+    <div class="modal-overlay" id="loginModal">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-logo">
+                    <i class="fas fa-anchor"></i>
+                </div>
+                <h2 class="modal-title">MOB Guard</h2>
+                <p class="modal-subtitle">Man Overboard Security System</p>
+            </div>
+            
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label class="form-label">Username</label>
+                    <input type="text" class="form-input" id="loginUsername" 
+                           placeholder="Enter username" required autocomplete="username">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Password</label>
+                    <input type="password" class="form-input" id="loginPassword" 
+                           placeholder="Enter password" required autocomplete="current-password">
+                </div>
+                
+                <div class="form-error" id="loginError">
+                    Invalid credentials. Please try again.
+                </div>
+                
+                <button type="submit" class="btn btn-primary btn-full" style="margin-top: var(--spacing-md);">
+                    <i class="fas fa-sign-in-alt"></i> Login
+                </button>
+            </form>
+            
+            <div class="demo-credentials">
+                <div class="demo-credentials-title">Demo Credentials</div>
+                <div class="demo-credentials-text">
+                    Admin: admin / admin123<br>
+                    Viewer: viewer / viewer123
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================================
+         FOOTER
+         ============================================================================ -->
+    <footer class="footer">
+        <div class="footer-content">
+            <span>MOB Guard v1.0.0 - Marine Safety System</span>
+            <span id="lastSync">Last sync: Never</span>
+            <span>For demonstration purposes only</span>
+        </div>
+    </footer>
+
+    <!-- ============================================================================
+         JAVASCRIPT
+         ============================================================================ -->
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" 
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" 
+            crossorigin=""></script>
+    
+    <script>
+        // ========================================================================
+        // MOB GUARD - MAN OVERBOARD SECURITY SYSTEM
+        // ========================================================================
+        // 
+        // This is a frontend-only application designed for GitHub Pages deployment.
+        // All data is stored in localStorage for persistence.
+        //
+        // BACKEND INTEGRATION NOTES:
+        // -------------------------
+        // To connect a real backend later, modify these functions:
+        //
+        // 1. receiveLoRaPacket(packet) - Add fetch() to POST to your API
+        // 2. loadHistory() - Change to fetch() from your API endpoint
+        // 3. authenticateUser() - Validate against your auth service
+        // 4. exportLogs() - Download from your backend
+        //
+        // ========================================================================
+
+        // ========================================================================
+        // CONFIGURATION
+        // ========================================================================
+        
+        const CONFIG = {
+            // Alert thresholds
+            RSSI_WARNING: -80,      // dBm
+            RSSI_CRITICAL: -95,     // dBm
+            SPEED_DROP_THRESHOLD: 0.5,  // knots
+            
+            // Storage settings
+            MAX_HISTORY_ITEMS: 1000,
+            STORAGE_KEY: 'mob_guard_data',
+            SESSION_KEY: 'mob_guard_session',
+            
+            // Demo credentials (FOR DEMO ONLY - Replace with real auth)
+            USERS: {
+                'admin': { password: 'admin123', role: 'admin' },
+                'viewer': { password: 'viewer123', role: 'viewer' }
+            },
+            
+            // Default ship position (Mediterranean near Marseille)
+            DEFAULT_SHIP_POSITION: {
+                lat: 43.2965,
+                lng: 5.3698
+            },
+            
+            // Map settings
+            MAP_ZOOM: 14,
+            TRACK_MAX_POINTS: 50
+        };
+
+        // ========================================================================
+        // STATE MANAGEMENT
+        // ========================================================================
+        
+        const state = {
+            currentUser: null,
+            currentPacket: null,
+            packetHistory: [],
+            alertActive: false,
+            alertAcknowledged: false,
+            map: null,
+            mobMarker: null,
+            shipMarker: null,
+            trackLine: null,
+            trackPoints: [],
+            audioContext: null,
+            audioOscillator: null,
+            updateInterval: null
+        };
+
+        // ========================================================================
+        // INITIALIZATION
+        // ========================================================================
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+        });
+
+        function initializeApp() {
+            // Check for existing session
+            const session = getSession();
+            if (session) {
+                state.currentUser = session;
+                applyUserRole(session.role);
+                hideLoginModal();
+            } else {
+                showLoginModal();
+            }
+            
+            // Initialize map
+            initializeMap();
+            
+            // Load stored data
+            loadHistory();
+            
+            // Set up auto-refresh
+            startAutoRefresh();
+            
+            // Set default filter dates
+            setDefaultFilterDates();
+            
+            // Initialize audio context (user interaction required)
+            document.addEventListener('click', initAudioContext, { once: true });
+            
+            console.log('MOB Guard initialized');
+        }
+
+        // ========================================================================
+        // AUTHENTICATION (DEMO MODE - REPLACE WITH REAL AUTH)
+        // ========================================================================
+        // 
+        // WARNING: This is a demo authentication system for frontend-only operation.
+        // For production use, implement proper backend authentication:
+        // 
+        // 1. Send credentials to your auth API
+        // 2. Receive JWT token
+        // 3. Store token securely (httpOnly cookie recommended)
+        // 4. Validate token on each request
+        //
+        // ========================================================================
+
+        function handleLogin(event) {
+            event.preventDefault();
+            
+            const username = document.getElementById('loginUsername').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            
+            const user = authenticateUser(username, password);
+            
+            if (user) {
+                state.currentUser = user;
+                saveSession(user);
+                applyUserRole(user.role);
+                hideLoginModal();
+                document.getElementById('loginError').classList.remove('active');
+                console.log(`Logged in as ${user.username} (${user.role})`);
+            } else {
+                document.getElementById('loginError').classList.add('active');
+            }
+        }
+
+        function authenticateUser(username, password) {
+            // DEMO: Check against hardcoded credentials
+            // TODO: Replace with fetch() to your authentication API
+            
+            const userConfig = CONFIG.USERS[username];
+            if (userConfig && userConfig.password === password) {
+                return {
+                    username: username,
+                    role: userConfig.role,
+                    loginTime: new Date().toISOString()
+                };
+            }
+            return null;
+        }
+
+        function logout() {
+            clearSession();
+            state.currentUser = null;
+            location.reload();
+        }
+
+        function saveSession(user) {
+            localStorage.setItem(CONFIG.SESSION_KEY, JSON.stringify(user));
+        }
+
+        function getSession() {
+            const session = localStorage.getItem(CONFIG.SESSION_KEY);
+            return session ? JSON.parse(session) : null;
+        }
+
+        function clearSession() {
+            localStorage.removeItem(CONFIG.SESSION_KEY);
+        }
+
+        function applyUserRole(role) {
+            document.body.classList.toggle('is-admin', role === 'admin');
+            document.getElementById('userRole').textContent = role;
+            document.getElementById('userRole').className = `role-badge ${role}`;
+            document.getElementById('username').textContent = state.currentUser.username;
+        }
+
+        function showLoginModal() {
+            document.getElementById('loginModal').classList.add('active');
+        }
+
+        function hideLoginModal() {
+            document.getElementById('loginModal').classList.remove('active');
+        }
+
+        // ========================================================================
+        // LORA DATA INGESTION
+        // ========================================================================
+        //
+        // This function receives LoRa packets and processes them.
+        // To connect a real backend, add a fetch() call to POST data to your API.
+        //
+        // Example backend integration:
+        // 
+        // async function receiveLoRaPacket(packet) {
+        //     // Send to backend
+        //     await fetch('/api/lora/packet', {
+        //         method: 'POST',
+        //         headers: { 'Content-Type': 'application/json' },
+        //         body: JSON.stringify(packet)
+        //     });
+        //     
+        //     // Then process locally
+        //     processPacket(packet);
+        // }
+        //
+        // ========================================================================
+
+        function receiveLoRaPacket(packet) {
+            // Validate and normalize packet
+            const normalizedPacket = normalizePacket(packet);
+            
+            // Store packet
+            storePacket(normalizedPacket);
+            
+            // Update display
+            updateDashboard(normalizedPacket);
+            
+            // Update map
+            updateMap(normalizedPacket);
+            
+            // Check alert conditions
+            checkAlertConditions(normalizedPacket);
+            
+            // Update history table
+            addHistoryRow(normalizedPacket);
+            
+            console.log('Received packet:', normalizedPacket);
+            
+            return normalizedPacket;
+        }
+
+        function normalizePacket(packet) {
+            const now = new Date();
+            
+            return {
+                id: packet.id || 'UNKNOWN',
+                latitude: parseFloat(packet.latitude) || 0,
+                longitude: parseFloat(packet.longitude) || 0,
+                gpsFix: packet.gpsFix !== undefined ? packet.gpsFix : true,
+                satellites: parseInt(packet.satellites) || 0,
+                speed: parseFloat(packet.speed) || 0,
+                altitude: parseFloat(packet.altitude) || 0,
+                course: parseInt(packet.course) || 0,
+                rssi: parseInt(packet.rssi) || -100,
+                date: packet.date || now.toISOString().split('T')[0],
+                time: packet.time || now.toTimeString().split(' ')[0],
+                timestamp: now.toISOString(),
+                status: 'safe'
+            };
+        }
+
+        // ========================================================================
+        // DATA STORAGE (localStorage)
+        // ========================================================================
+        //
+        // For production with a backend, replace these functions:
+        //
+        // async function storePacket(packet) {
+        //     await fetch('/api/packets', {
+        //         method: 'POST',
+        //         headers: { 'Content-Type': 'application/json' },
+        //         body: JSON.stringify(packet)
+        //     });
+        // }
+        //
+        // async function loadHistory() {
+        //     const response = await fetch('/api/packets');
+        //     return await response.json();
+        // }
+        //
+        // ========================================================================
+
+        function storePacket(packet) {
+            // Load existing data
+            let data = getStoredData();
+            
+            // Add new packet
+            data.packets.unshift(packet);
+            
+            // Limit history size
+            if (data.packets.length > CONFIG.MAX_HISTORY_ITEMS) {
+                data.packets = data.packets.slice(0, CONFIG.MAX_HISTORY_ITEMS);
+            }
+            
+            // Save back to storage
+            localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(data));
+            
+            // Update state
+            state.packetHistory = data.packets;
+            state.currentPacket = packet;
+        }
+
+        function getStoredData() {
+            const stored = localStorage.getItem(CONFIG.STORAGE_KEY);
+            if (stored) {
+                return JSON.parse(stored);
+            }
+            return { packets: [] };
+        }
+
+        function loadHistory() {
+            const data = getStoredData();
+            state.packetHistory = data.packets;
+            
+            // Populate history table
+            const tbody = document.getElementById('historyBody');
+            tbody.innerHTML = '';
+            
+            data.packets.slice(0, 50).forEach(packet => {
+                addHistoryRow(packet, false);
+            });
+            
+            // Update last sync time
+            if (data.packets.length > 0) {
+                const lastPacket = data.packets[0];
+                updateLastSync(lastPacket.timestamp);
+            }
+        }
+
+        function clearLogs() {
+            if (confirm('Are you sure you want to clear all logs?')) {
+                localStorage.removeItem(CONFIG.STORAGE_KEY);
+                state.packetHistory = [];
+                document.getElementById('historyBody').innerHTML = '';
+                console.log('Logs cleared');
+            }
+        }
+
+        // ========================================================================
+        // DASHBOARD UPDATES
+        // ========================================================================
+
+        function updateDashboard(packet) {
+            // GPS Coordinates
+            const coordsEl = document.getElementById('gpsCoords');
+            coordsEl.textContent = `${packet.latitude.toFixed(5)}, ${packet.longitude.toFixed(5)}`;
+            flashUpdate(coordsEl);
+            
+            // Satellite count
+            document.getElementById('satelliteCount').textContent = packet.satellites;
+            
+            // GPS Fix
+            const fixEl = document.getElementById('gpsFix');
+            fixEl.textContent = packet.gpsFix ? 'OK' : 'LOST';
+            fixEl.style.color = packet.gpsFix ? 'var(--status-safe)' : 'var(--status-alert)';
+            
+            // Speed
+            const speedEl = document.getElementById('speed');
+            speedEl.textContent = packet.speed.toFixed(1);
+            flashUpdate(speedEl);
+            
+            // Course
+            document.getElementById('course').textContent = packet.course;
+            
+            // Speed status
+            const speedStatusEl = document.getElementById('speedStatus');
+            if (packet.speed < 0.5) {
+                speedStatusEl.textContent = 'Stationary';
+            } else if (packet.speed < 2) {
+                speedStatusEl.textContent = 'Drifting';
+            } else {
+                speedStatusEl.textContent = 'Moving';
+            }
+            
+            // RSSI
+            updateRSSI(packet.rssi);
+            
+            // Beacon info
+            document.getElementById('deviceId').textContent = packet.id;
+            document.getElementById('altitude').textContent = packet.altitude.toFixed(1);
+            document.getElementById('lastSeen').textContent = packet.time;
+            
+            // Status banner
+            updateStatusBanner(packet);
+            
+            // Last sync
+            updateLastSync(packet.timestamp);
+        }
+
+        function updateRSSI(rssi) {
+            const rssiEl = document.getElementById('rssiValue');
+            const bars = document.querySelectorAll('.signal-bar');
+            const icon = document.getElementById('rssiIcon');
+            
+            rssiEl.textContent = `${rssi} dBm`;
+            flashUpdate(rssiEl);
+            
+            // Determine signal quality
+            let quality = 0;
+            let colorClass = 'critical';
+            
+            if (rssi > -70) {
+                quality = 5;
+                colorClass = '';
+                rssiEl.style.color = 'var(--status-safe)';
+                icon.className = 'card-icon teal';
+            } else if (rssi > -80) {
+                quality = 4;
+                colorClass = '';
+                rssiEl.style.color = 'var(--status-safe)';
+                icon.className = 'card-icon teal';
+            } else if (rssi > -90) {
+                quality = 3;
+                colorClass = 'warning';
+                rssiEl.style.color = 'var(--status-warning)';
+                icon.className = 'card-icon amber';
+            } else if (rssi > -100) {
+                quality = 2;
+                colorClass = 'critical';
+                rssiEl.style.color = 'var(--status-alert)';
+                icon.className = 'card-icon red';
+            } else {
+                quality = 1;
+                colorClass = 'critical';
+                rssiEl.style.color = 'var(--status-alert)';
+                icon.className = 'card-icon red';
+            }
+            
+            // Update bars
+            bars.forEach((bar, index) => {
+                bar.classList.toggle('active', index < quality);
+                bar.className = `signal-bar ${index < quality ? 'active' : ''} ${colorClass}`;
+            });
+        }
+
+        function updateStatusBanner(packet) {
+            const banner = document.getElementById('statusBanner');
+            const statusText = document.getElementById('statusText');
+            const statusIcon = banner.querySelector('.status-icon');
+            
+            // Determine status
+            let status = 'safe';
+            
+            if (!packet.gpsFix) {
+                status = 'alert';
+            } else if (packet.rssi < CONFIG.RSSI_CRITICAL) {
+                status = 'alert';
+            } else if (packet.rssi < CONFIG.RSSI_WARNING) {
+                status = 'warning';
+            }
+            
+            // Update banner
+            banner.className = `status-banner ${status}`;
+            
+            if (status === 'safe') {
+                statusText.textContent = 'System Normal';
+                statusIcon.className = 'fas fa-check-circle status-icon';
+            } else if (status === 'warning') {
+                statusText.textContent = 'Warning';
+                statusIcon.className = 'fas fa-exclamation-triangle status-icon';
+            } else {
+                statusText.textContent = 'MAN OVERBOARD';
+                statusIcon.className = 'fas fa-life-ring status-icon';
+            }
+            
+            // Update time
+            document.getElementById('statusTime').textContent = 
+                `Last update: ${packet.time}`;
+        }
+
+        function flashUpdate(element) {
+            element.classList.add('update-flash');
+            setTimeout(() => element.classList.remove('update-flash'), 300);
+        }
+
+        function updateLastSync(timestamp) {
+            const date = new Date(timestamp);
+            document.getElementById('lastSync').textContent = 
+                `Last sync: ${date.toLocaleTimeString()}`;
+        }
+
+        // ========================================================================
+        // MAP FUNCTIONS
+        // ========================================================================
+
+        function initializeMap() {
+            // Create map
+            state.map = L.map('map').setView(
+                [CONFIG.DEFAULT_SHIP_POSITION.lat, CONFIG.DEFAULT_SHIP_POSITION.lng],
+                CONFIG.MAP_ZOOM
+            );
+            
+            // Add base layer (OpenStreetMap)
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(state.map);
+            
+            // Add marine overlay (OpenSeaMap)
+            L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {
+                attribution: '© OpenSeaMap contributors',
+                maxZoom: 19,
+                opacity: 0.7
+            }).addTo(state.map);
+            
+            // Create custom markers
+            const mobIcon = L.divIcon({
+                className: 'custom-div-icon',
+                html: `<div class="mob-marker"><i class="fas fa-user"></i></div>`,
+                iconSize: [30, 30],
+                iconAnchor: [15, 15]
+            });
+            
+            const shipIcon = L.divIcon({
+                className: 'custom-div-icon',
+                html: `<div class="ship-marker"><i class="fas fa-ship"></i></div>`,
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
+            });
+            
+            // Add markers
+            state.mobMarker = L.marker(
+                [CONFIG.DEFAULT_SHIP_POSITION.lat, CONFIG.DEFAULT_SHIP_POSITION.lng],
+                { icon: mobIcon }
+            ).addTo(state.map);
+            
+            state.mobMarker.bindPopup('<b>MOB Position</b><br>Last known location');
+            
+            state.shipMarker = L.marker(
+                [CONFIG.DEFAULT_SHIP_POSITION.lat + 0.002, CONFIG.DEFAULT_SHIP_POSITION.lng + 0.002],
+                { icon: shipIcon }
+            ).addTo(state.map);
+            
+            state.shipMarker.bindPopup('<b>Ship Position</b><br>Current location');
+            
+            // Initialize track line
+            state.trackLine = L.polyline([], {
+                color: '#00d4aa',
+                weight: 3,
+                opacity: 0.8,
+                dashArray: '10, 10'
+            }).addTo(state.map);
+        }
+
+        function updateMap(packet) {
+            if (!state.map) return;
+            
+            const position = [packet.latitude, packet.longitude];
+            
+            // Update MOB marker
+            state.mobMarker.setLatLng(position);
+            state.mobMarker.setPopupContent(`
+                <b>${packet.id}</b><br>
+                Speed: ${packet.speed.toFixed(1)} kn<br>
+                Course: ${packet.course}°<br>
+                RSSI: ${packet.rssi} dBm<br>
+                Time: ${packet.time}
+            `);
+            
+            // Add to track
+            state.trackPoints.push(position);
+            if (state.trackPoints.length > CONFIG.TRACK_MAX_POINTS) {
+                state.trackPoints.shift();
+            }
+            state.trackLine.setLatLngs(state.trackPoints);
+        }
+
+        function centerOnMOB() {
+            if (state.currentPacket && state.map) {
+                state.map.panTo([state.currentPacket.latitude, state.currentPacket.longitude]);
+            }
+        }
+
+        function centerOnShip() {
+            if (state.map) {
+                state.map.panTo([CONFIG.DEFAULT_SHIP_POSITION.lat, CONFIG.DEFAULT_SHIP_POSITION.lng]);
+            }
+        }
+
+        function toggleFullscreen() {
+            const container = document.querySelector('.map-container');
+            if (!document.fullscreenElement) {
+                container.requestFullscreen().catch(err => {
+                    console.log('Fullscreen error:', err);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        function clearTrack() {
+            state.trackPoints = [];
+            state.trackLine.setLatLngs([]);
+        }
+
+        // ========================================================================
+        // ALERT SYSTEM
+        // ========================================================================
+
+        function checkAlertConditions(packet) {
+            let alertTriggered = false;
+            let alertReason = '';
+            
+            // Check GPS fix lost
+            if (!packet.gpsFix) {
+                alertTriggered = true;
+                alertReason = 'GPS fix lost';
+            }
+            
+            // Check RSSI critical
+            else if (packet.rssi < CONFIG.RSSI_CRITICAL) {
+                alertTriggered = true;
+                alertReason = 'Signal strength critical';
+            }
+            
+            // Check speed drop (potential MOB)
+            else if (state.currentPacket && 
+                     state.currentPacket.speed > 3 && 
+                     packet.speed < CONFIG.SPEED_DROP_THRESHOLD) {
+                alertTriggered = true;
+                alertReason = 'Sudden speed drop detected';
+            }
+            
+            if (alertTriggered && !state.alertActive) {
+                triggerAlert(alertReason);
+            }
+        }
+
+        function triggerAlert(reason) {
+            state.alertActive = true;
+            state.alertAcknowledged = false;
+            
+            // Show alert panel
+            const panel = document.getElementById('alertPanel');
+            panel.classList.add('active');
+            panel.classList.remove('silenced');
+            
+            // Update alert content
+            document.getElementById('alertMessage').textContent = 
+                `${reason}. Check map for position.`;
+            document.getElementById('alertTime').textContent = 
+                new Date().toLocaleTimeString();
+            
+            // Play alarm sound
+            playAlarmSound();
+            
+            // Center map on MOB
+            centerOnMOB();
+            
+            // Update status banner
+            const banner = document.getElementById('statusBanner');
+            banner.className = 'status-banner alert';
+            document.getElementById('statusText').textContent = 'MAN OVERBOARD';
+            
+            console.log('ALERT TRIGGERED:', reason);
+        }
+
+        function acknowledgeAlert() {
+            state.alertAcknowledged = true;
+            
+            // Stop alarm sound
+            stopAlarmSound();
+            
+            // Update panel appearance
+            const panel = document.getElementById('alertPanel');
+            panel.classList.add('silenced');
+            
+            // Hide panel after delay
+            setTimeout(() => {
+                panel.classList.remove('active');
+                state.alertActive = false;
+            }, 3000);
+            
+            // Reset status banner if conditions are normal
+            if (state.currentPacket && state.currentPacket.gpsFix && 
+                state.currentPacket.rssi > CONFIG.RSSI_WARNING) {
+                const banner = document.getElementById('statusBanner');
+                banner.className = 'status-banner safe';
+                document.getElementById('statusText').textContent = 'System Normal';
+            }
+        }
+
+        function simulateMOB() {
+            // Simulate an MOB alert for testing
+            const testPacket = {
+                id: 'MOB-TEST',
+                latitude: CONFIG.DEFAULT_SHIP_POSITION.lat + (Math.random() - 0.5) * 0.01,
+                longitude: CONFIG.DEFAULT_SHIP_POSITION.lng + (Math.random() - 0.5) * 0.01,
+                gpsFix: true,
+                satellites: 8,
+                speed: 0.2,
+                altitude: 0,
+                course: Math.floor(Math.random() * 360),
+                rssi: -85,
+                date: new Date().toISOString().split('T')[0],
+                time: new Date().toTimeString().split(' ')[0]
+            };
+            
+            receiveLoRaPacket(testPacket);
+            triggerAlert('Manual test alert triggered');
+        }
+
+        // ========================================================================
+        // AUDIO ALERT SYSTEM (Web Audio API)
+        // ========================================================================
+
+        function initAudioContext() {
+            if (!state.audioContext) {
+                state.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playAlarmSound() {
+            if (!state.audioContext) return;
+            
+            // Create oscillator for alarm tone
+            const oscillator = state.audioContext.createOscillator();
+            const gainNode = state.audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(state.audioContext.destination);
+            
+            // Alarm pattern: alternating high/low tones
+            oscillator.type = 'square';
+            oscillator.frequency.setValueAtTime(880, state.audioContext.currentTime);
+            oscillator.frequency.setValueAtTime(440, state.audioContext.currentTime + 0.2);
+            oscillator.frequency.setValueAtTime(880, state.audioContext.currentTime + 0.4);
+            oscillator.frequency.setValueAtTime(440, state.audioContext.currentTime + 0.6);
+            
+            // Volume envelope
+            gainNode.gain.setValueAtTime(0.3, state.audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, state.audioContext.currentTime + 0.8);
+            
+            oscillator.start(state.audioContext.currentTime);
+            oscillator.stop(state.audioContext.currentTime + 0.8);
+            
+            // Store reference
+            state.audioOscillator = oscillator;
+            
+            // Repeat alarm
+            if (state.alertActive && !state.alertAcknowledged) {
+                setTimeout(() => playAlarmSound(), 1000);
+            }
+        }
+
+        function stopAlarmSound() {
+            if (state.audioOscillator) {
+                try {
+                    state.audioOscillator.stop();
+                } catch (e) {
+                    // Oscillator may already be stopped
+                }
+                state.audioOscillator = null;
+            }
+        }
+
+        // ========================================================================
+        // HISTORY & LOGS
+        // ========================================================================
+
+        function addHistoryRow(packet, prepend = true) {
+            const tbody = document.getElementById('historyBody');
+            const row = document.createElement('tr');
+            
+            // Determine status
+            let statusClass = 'safe';
+            let statusText = 'Normal';
+            
+            if (!packet.gpsFix || packet.rssi < CONFIG.RSSI_CRITICAL) {
+                statusClass = 'alert';
+                statusText = 'Alert';
+            } else if (packet.rssi < CONFIG.RSSI_WARNING) {
+                statusClass = 'warning';
+                statusText = 'Warning';
+            }
+            
+            // Determine RSSI class
+            let rssiClass = 'rssi-good';
+            if (packet.rssi < -95) rssiClass = 'rssi-critical';
+            else if (packet.rssi < -80) rssiClass = 'rssi-warning';
+            
+            row.innerHTML = `
+                <td>${packet.date} ${packet.time}</td>
+                <td>${packet.id}</td>
+                <td>${packet.latitude.toFixed(5)}</td>
+                <td>${packet.longitude.toFixed(5)}</td>
+                <td>${packet.speed.toFixed(1)} kn</td>
+                <td class="${rssiClass}">${packet.rssi} dBm</td>
+                <td><span class="status-cell ${statusClass}">${statusText}</span></td>
+            `;
+            
+            if (prepend && tbody.firstChild) {
+                tbody.insertBefore(row, tbody.firstChild);
+            } else {
+                tbody.appendChild(row);
+            }
+            
+            // Limit rows in table
+            while (tbody.children.length > 50) {
+                tbody.removeChild(tbody.lastChild);
+            }
+        }
+
+        function setDefaultFilterDates() {
+            const today = new Date().toISOString().split('T')[0];
+            const lastWeek = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+            
+            document.getElementById('filterFrom').value = lastWeek;
+            document.getElementById('filterTo').value = today;
+        }
+
+        function applyFilters() {
+            const fromDate = document.getElementById('filterFrom').value;
+            const toDate = document.getElementById('filterTo').value;
+            
+            const tbody = document.getElementById('historyBody');
+            tbody.innerHTML = '';
+            
+            const filtered = state.packetHistory.filter(packet => {
+                return packet.date >= fromDate && packet.date <= toDate;
+            });
+            
+            filtered.forEach(packet => addHistoryRow(packet, false));
+            
+            console.log(`Filtered: ${filtered.length} records`);
+        }
+
+        function exportLogs() {
+            // Create CSV content
+            const headers = ['Timestamp', 'Date', 'Time', 'Device ID', 'Latitude', 'Longitude', 
+                           'GPS Fix', 'Satellites', 'Speed (kn)', 'Altitude (m)', 'Course (°)', 
+                           'RSSI (dBm)', 'Status'];
+            
+            const rows = state.packetHistory.map(packet => [
+                packet.timestamp,
+                packet.date,
+                packet.time,
+                packet.id,
+                packet.latitude,
+                packet.longitude,
+                packet.gpsFix ? 'Yes' : 'No',
+                packet.satellites,
+                packet.speed,
+                packet.altitude,
+                packet.course,
+                packet.rssi,
+                packet.status
+            ]);
+            
+            const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+            
+            // Download file
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `mob_guard_logs_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            console.log('Logs exported');
+        }
+
+        // ========================================================================
+        // AUTO-REFRESH & SIMULATION
+        // ========================================================================
+
+        function startAutoRefresh() {
+            // Simulate incoming data every 5 seconds for demo
+            state.updateInterval = setInterval(() => {
+                simulateIncomingPacket();
+            }, 5000);
+        }
+
+        function simulateIncomingPacket() {
+            // Generate simulated packet for demonstration
+            const now = new Date();
+            const baseLat = CONFIG.DEFAULT_SHIP_POSITION.lat;
+            const baseLng = CONFIG.DEFAULT_SHIP_POSITION.lng;
+            
+            // Simulate slight movement
+            const driftLat = (Math.random() - 0.5) * 0.002;
+            const driftLng = (Math.random() - 0.5) * 0.002;
+            
+            const packet = {
+                id: 'MOB-01',
+                latitude: baseLat + driftLat,
+                longitude: baseLng + driftLng,
+                gpsFix: true,
+                satellites: 6 + Math.floor(Math.random() * 6),
+                speed: Math.random() * 3,
+                altitude: Math.random() * 2,
+                course: Math.floor(Math.random() * 360),
+                rssi: -70 - Math.floor(Math.random() * 20),
+                date: now.toISOString().split('T')[0],
+                time: now.toTimeString().split(' ')[0]
+            };
+            
+            receiveLoRaPacket(packet);
+        }
+
+        // ========================================================================
+        // NAVIGATION
+        // ========================================================================
+
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                // Update active state
+                document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+                this.classList.add('active');
+                
+                // Scroll to section
+                const sectionId = this.getAttribute('data-section');
+                const section = document.getElementById(sectionId);
+                if (section) {
+                    section.scrollIntoView({ behavior: 'smooth' });
+                }
+            });
+        });
+
+        // ========================================================================
+        // UTILITY FUNCTIONS
+        // ========================================================================
+
+        // Expose receiveLoRaPacket globally for external API integration
+        window.receiveLoRaPacket = receiveLoRaPacket;
+        window.simulateMOB = simulateMOB;
+        
+        // Console welcome message
+        console.log('%c MOB Guard ', 'background: #00d4aa; color: #0d2137; font-size: 20px; font-weight: bold;');
+        console.log('%c Man Overboard Security System ', 'color: #00d4aa; font-size: 14px;');
+        console.log('\nUse receiveLoRaPacket(packet) to ingest telemetry data.\n');
+        console.log('Example:');
+        console.log(`receiveLoRaPacket({
+    id: "MOB-01",
+    latitude: 43.29317,
+    longitude: 5.37485,
+    gpsFix: true,
+    satellites: 8,
+    speed: 1.8,
+    altitude: 0.2,
+    course: 128,
+    rssi: -68,
+    date: "2024-01-15",
+    time: "14:30:25"
+});`);
+    </script>
+</body>
+</html>

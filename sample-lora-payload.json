@@ -1,0 +1,16 @@
+{
+  "_comment": "Sample LoRa telemetry packet for MOB Guard System",
+  "_description": "This is an example of the JSON format expected by the receiveLoRaPacket() function",
+  
+  "id": "MOB-01",
+  "latitude": 43.29317,
+  "longitude": 5.37485,
+  "gpsFix": true,
+  "satellites": 8,
+  "speed": 1.8,
+  "altitude": 0.2,
+  "course": 128,
+  "rssi": -68,
+  "date": "2024-01-15",
+  "time": "14:30:25"
+}
