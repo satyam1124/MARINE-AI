@@ -2096,10 +2096,10 @@ function buildExamPapers(lvl) {
 function selectExamPaper(el, title) {
   document.querySelectorAll('.ep-card').forEach(c => c.classList.remove('active'));
   el.classList.add('active');
-  // Auto-populate search and ask
-  document.getElementById('searchInput').value = `Explain the complete syllabus and important topics for ${title} in the MMD examination`;
+  // Pre-fill search — user taps Ask AI when ready
+  const inp2 = document.getElementById('searchInput');
+  if (inp2) inp2.value = `What are the key topics and exam questions for ${title}?`;
   showTopicZone();
-  doAsk();
 }
 
 /* ── SIDEBAR BUILDER ── */
@@ -2157,14 +2157,11 @@ function selectTopic(topicId, title, desc, icon, sectionName) {
     { label: title.slice(0, 30) + (title.length > 30 ? '…' : ''), active: true }
   ]);
 
-  // Auto-ask AI (always Balanced for topic load)
+  // Pre-fill search with a suggested question (shorter) — user decides when to ask
   const levelLabel = APP.currentLevel.fullTitle;
-  const q = `Explain "${title}" in complete detail for a ${levelLabel} level student. Include all key principles, formulas, practical applications, and exam-relevant points. Reference the authoritative sources (Reed's, Pounder's, IMO, STCW as appropriate).`;
-  document.getElementById('searchInput').value = q;
-  doAsk();
-
-  // Mark studied
-  markStudied(topicId);
+  const suggestedQ = `Explain "${title}" for ${levelLabel} — key principles, formulas, and exam points.`;
+  const inp = document.getElementById('searchInput');
+  if (inp) inp.value = suggestedQ;
 
   // Update quiz topic label
   document.getElementById('quizTopic').textContent = title;
@@ -5018,12 +5015,12 @@ const AI_PROVIDERS = {
     keyTest:  k => k.startsWith('AIza'),
     getKey:   'https://aistudio.google.com',
     models: {
-      fast: 'gemini-2.0-flash',
-      bal:  'gemini-2.0-flash',
+      fast: 'gemini-1.5-flash',
+      bal:  'gemini-1.5-flash',
       deep: 'gemini-1.5-pro',
-      live: 'gemini-2.0-flash'
+      live: 'gemini-1.5-flash'
     },
-    free: '15 req/min · 1M tokens/day · No credit card',
+    free: '15 req/min · 1,500 req/day · 1M tokens/day · Free',
     call: callGemini
   },
   groq: {
@@ -5039,7 +5036,8 @@ const AI_PROVIDERS = {
       deep: 'llama-3.3-70b-versatile',
       live: 'llama-3.3-70b-versatile'
     },
-    free: '14,400 req/day · Ultra fast · No credit card',
+    modelFallbacks: ['llama-3.3-70b-versatile','llama-3.1-70b-versatile','llama3-70b-8192','llama3-8b-8192'],
+    free: 'Truly free · No quota issues · No credit card · ~14,400 req/day',
     call: callGroq
   },
   openrouter: {
@@ -5586,15 +5584,22 @@ Format exactly: [{"q":"question","opts":["A. text","B. text","C. text","D. text"
   // Provider guide content
   const guides = {
     gemini: `
-      <div class="setup-step"><div class="step-num">1</div><div>Go to <a href="https://aistudio.google.com" target="_blank">aistudio.google.com</a> — sign in with any Google account</div></div>
+      <div style="padding:9px 12px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:8px;margin-bottom:10px;font-size:0.75rem;color:#fbbf24;line-height:1.6">
+        ⚠ <strong>Important:</strong> Gemini quota is per <strong>Google account</strong>, not per API key.<br>
+        Creating a new key from the same Gmail gives the same quota. If you hit limits, use Groq instead.
+      </div>
+      <div class="setup-step"><div class="step-num">1</div><div>Go to <a href="https://aistudio.google.com" target="_blank">aistudio.google.com</a> — sign in with a Google account</div></div>
       <div class="setup-step"><div class="step-num">2</div><div>Click <strong>"Get API Key"</strong> → <strong>"Create API key"</strong></div></div>
       <div class="setup-step"><div class="step-num">3</div><div>Copy the key (starts with <code>AIza</code>) and paste below</div></div>
-      <div style="margin-top:8px;color:#22c55e;font-size:0.72rem">✅ 100% free · No credit card · 15 requests/min · 1 million tokens/day</div>`,
+      <div style="margin-top:8px;color:#f59e0b;font-size:0.72rem">⚠ Free quota resets daily at midnight Pacific. New accounts may have lower initial quota.</div>`,
     groq: `
-      <div class="setup-step"><div class="step-num">1</div><div>Go to <a href="https://console.groq.com" target="_blank">console.groq.com</a> — create a free account</div></div>
-      <div class="setup-step"><div class="step-num">2</div><div>Click <strong>"API Keys"</strong> → <strong>"Create API Key"</strong></div></div>
+      <div style="padding:9px 12px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:8px;margin-bottom:10px;font-size:0.75rem;color:#86efac;line-height:1.6">
+        ✅ <strong>Best choice</strong> — Each Gmail/email creates a completely separate account with its own free quota. No account-level sharing.
+      </div>
+      <div class="setup-step"><div class="step-num">1</div><div>Go to <a href="https://console.groq.com" target="_blank">console.groq.com</a> — sign up free (email or Google)</div></div>
+      <div class="setup-step"><div class="step-num">2</div><div>Go to <strong>API Keys</strong> in the left menu → <strong>Create API Key</strong></div></div>
       <div class="setup-step"><div class="step-num">3</div><div>Copy the key (starts with <code>gsk_</code>) and paste below</div></div>
-      <div style="margin-top:8px;color:#22c55e;font-size:0.72rem">✅ 100% free · No credit card · Ultra-fast Llama 3 · 14,400 req/day</div>`,
+      <div style="margin-top:8px;color:#22c55e;font-size:0.72rem">✅ Free forever · No credit card · Uses Llama 3.3 70B · ~14,400 req/day · Resets daily</div>`,
     openrouter: `
       <div class="setup-step"><div class="step-num">1</div><div>Go to <a href="https://openrouter.ai" target="_blank">openrouter.ai</a> — sign up free</div></div>
       <div class="setup-step"><div class="step-num">2</div><div>Go to <strong>Keys</strong> → <strong>Create Key</strong></div></div>
@@ -5610,18 +5615,18 @@ Format exactly: [{"q":"question","opts":["A. text","B. text","C. text","D. text"
   overlay.innerHTML = `
 <div class="modal-box" style="max-width:500px;width:92vw;">
   <div class="modal-title" style="margin-bottom:4px">🔑 Choose AI Provider</div>
-  <p style="color:var(--tx3);font-size:0.78rem;margin:0 0 4px">All providers below offer a <strong style="color:#22c55e">free tier</strong> — no payment needed for Gemini or Groq.</p>
+  <p style="color:var(--tx3);font-size:0.78rem;margin:0 0 4px">⚡ <strong style="color:#22c55e">Groq is recommended</strong> — truly free, no quota, works instantly. Gemini quota is per Google account, not per key.</p>
 
   <div class="provider-grid" id="providerGrid">
-    <div class="provider-card selected" data-pid="gemini" onclick="selectProvider('gemini')">
-      <div class="pc-name">🌐 Google Gemini</div>
-      <div class="pc-free">✅ FREE — No card needed</div>
-      <div style="font-size:0.6rem;color:var(--tx3);margin-top:2px">Recommended</div>
-    </div>
-    <div class="provider-card" data-pid="groq" onclick="selectProvider('groq')">
+    <div class="provider-card selected" data-pid="groq" onclick="selectProvider('groq')">
       <div class="pc-name">⚡ Groq (Llama 3)</div>
-      <div class="pc-free">✅ FREE — Ultra fast</div>
-      <div style="font-size:0.6rem;color:var(--tx3);margin-top:2px">Best speed</div>
+      <div class="pc-free">✅ FREE — No limits</div>
+      <div style="font-size:0.6rem;color:#22c55e;margin-top:2px">⭐ Best for India</div>
+    </div>
+    <div class="provider-card" data-pid="gemini" onclick="selectProvider('gemini')">
+      <div class="pc-name">🌐 Google Gemini</div>
+      <div class="pc-free">⚠ Quota per account</div>
+      <div style="font-size:0.6rem;color:#f59e0b;margin-top:2px">May hit limits</div>
     </div>
     <div class="provider-card" data-pid="openrouter" onclick="selectProvider('openrouter')">
       <div class="pc-name">🔀 OpenRouter</div>
@@ -5635,10 +5640,10 @@ Format exactly: [{"q":"question","opts":["A. text","B. text","C. text","D. text"
     </div>
   </div>
 
-  <div class="setup-guide" id="setupGuide">${guides.gemini}</div>
+  <div class="setup-guide" id="setupGuide">${guides.groq}</div>
 
   <label class="modal-label" style="margin-top:10px">Paste your API Key</label>
-  <input class="modal-input" type="password" id="apiKeyInput" placeholder="AIza… (Gemini key)"/>
+  <input class="modal-input" type="password" id="apiKeyInput" placeholder="gsk_… (Groq key) or AIza… (Gemini)"/>
   <div id="keyDetectedBadge" style="min-height:20px;margin:4px 0;font-size:0.72rem;color:var(--tx3)"></div>
 
   <div class="modal-actions">
@@ -7765,6 +7770,283 @@ document.addEventListener('DOMContentLoaded', () => {
     infoCards[0].querySelector('.ic-text').textContent  = 'B.Tech 4-Year Degree + Engine Cadet + MEO Class IV + Class II/I + Chief Engineer — complete coverage from Year 1 to senior rank.';
   }
 });
+
+
+
+/* ══ QUOTA FIX v2 ══ */
+/* ═══════════════════════════════════════════════════════════════════════
+   QUOTA FIX v2: Groq default + Gemini model fallbacks + error UX
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Fix Gemini to use 1.5-flash with model-level fallback chain ── */
+AI_PROVIDERS.gemini.models = {
+  fast: 'gemini-1.5-flash',
+  bal:  'gemini-1.5-flash',
+  deep: 'gemini-1.5-pro',
+  live: 'gemini-1.5-flash'
+};
+
+const GEMINI_MODEL_FALLBACKS = [
+  'gemini-1.5-flash',
+  'gemini-1.5-flash-8b',
+  'gemini-1.0-pro',
+];
+
+/* ── Rewrite callGemini with per-model fallback ── */
+callGemini = async function(q, mode, onChunk, onDone, onError) {
+  const maxOut = { fast:800, bal:1600, deep:3000, live:1600 }[mode] || 1600;
+  const systemPrompt = buildSystemPrompt(mode);
+  const modelsToTry  = mode === 'deep'
+    ? ['gemini-1.5-pro','gemini-1.5-flash']
+    : GEMINI_MODEL_FALLBACKS;
+
+  for (const model of modelsToTry) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${APP.apiKey}`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role:'user', parts:[{ text: systemPrompt+'\n\n---\n\n'+q }] }],
+          generationConfig: { maxOutputTokens: maxOut, temperature: mode==='deep'?0.3:0.5 }
+        })
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(()=>({}));
+        const msg = err.error?.message || `HTTP ${res.status}`;
+        if (res.status===401 || msg.includes('API_KEY_INVALID'))
+          throw new Error('Invalid Gemini API key. Get a free key at aistudio.google.com');
+        if (msg.includes('quota') || msg.includes('RESOURCE_EXHAUSTED') || res.status===429)
+          continue; // try next model
+        throw new Error(`Gemini (${model}): ${msg}`);
+      }
+
+      AI_PROVIDERS.gemini._activeModel = model;
+      const reader=res.body.getReader(), decoder=new TextDecoder();
+      let buf='';
+      while(true){
+        const {done,value}=await reader.read();
+        if(done) break;
+        buf+=decoder.decode(value,{stream:true});
+        const lines=buf.split('\n'); buf=lines.pop();
+        for(const line of lines){
+          if(!line.startsWith('data:')) continue;
+          const raw=line.slice(5).trim();
+          try{ const j=JSON.parse(raw); const t=j.candidates?.[0]?.content?.parts?.[0]?.text||''; if(t) onChunk(t); }catch{}
+        }
+      }
+      onDone(); return;
+    } catch(e) {
+      if(e.message.includes('quota')||e.message.includes('RESOURCE_EXHAUSTED')) continue;
+      onError(e); return;
+    }
+  }
+
+  onError(new Error(
+    'Gemini quota exhausted on all models for today.\n\n' +
+    '✅ Fix: Switch to Groq — it\'s free with no account-level quota.\n' +
+    'Get a key at console.groq.com (takes 30 seconds)'
+  ));
+};
+
+/* ── Override doAsk for better quota error UX ── */
+const _doAsk_qf = doAsk;
+doAsk = async function() {
+  const q = document.getElementById('searchInput')?.value?.trim();
+  if (!q) return;
+  if (!APP.apiKey) { openApiModal(); return; }
+
+  APP.lastQuery = q;
+  const mode = APP.currentModel;
+
+  hideEl('answerCard'); hideEl('errorEl'); showEl('thinkingEl');
+  const btn = document.getElementById('askBtn');
+  if (btn) { btn.disabled=true; btn.textContent='THINKING…'; }
+  document.getElementById('thinkStage').textContent = 'Consulting knowledge base…';
+  document.getElementById('thinkDetail').textContent = mode==='deep' ? 'Deep mode — 8–15 seconds' : '';
+
+  const t0 = Date.now();
+  APP.timerIv = setInterval(()=>{
+    const el=document.getElementById('thinkTimer');
+    if(el) el.textContent=((Date.now()-t0)/1000).toFixed(1)+'s';
+  },100);
+
+  try {
+    if (mode==='live') await askLive(q,t0);
+    else await askStream(q,mode,t0);
+    if (APP.currentTopic) markStudied(APP.currentTopic);
+    APP.stats.aiAsked=(APP.stats.aiAsked||0)+1;
+    try{ localStorage.setItem('miq_stats',JSON.stringify(APP.stats)); }catch(e){}
+  } catch(e) {
+    clearTimer(); hideEl('thinkingEl');
+    const errMsg = document.getElementById('errorMsg');
+    const errEl  = document.getElementById('errorEl');
+    if (errMsg) errMsg.innerHTML = esc(e.message).replace(/\n/g,'<br>');
+
+    const isQuota = /quota|exceeded|rate.?limit|RESOURCE_EXHAUSTED/i.test(e.message);
+    if (errEl && isQuota) {
+      const old = errEl.querySelector('.quota-fix-btns');
+      if (old) old.remove();
+      const div = document.createElement('div');
+      div.className = 'quota-fix-btns';
+      div.style.cssText = 'margin-top:12px;display:flex;flex-wrap:wrap;gap:8px;';
+      div.innerHTML = `
+        <button onclick="openApiModal()" style="padding:8px 14px;border-radius:8px;border:1px solid rgba(52,211,153,0.4);background:rgba(52,211,153,0.08);color:#34d399;cursor:pointer;font-size:0.78rem;font-weight:600;">
+          🔄 Switch to Groq (Free)
+        </button>
+        <a href="https://console.groq.com" target="_blank" style="padding:8px 14px;border-radius:8px;border:1px solid rgba(96,165,250,0.4);background:rgba(96,165,250,0.08);color:#60a5fa;font-size:0.78rem;font-weight:600;text-decoration:none;display:flex;align-items:center;">
+          Get Groq Key →
+        </a>`;
+      errEl.appendChild(div);
+    }
+    showEl('errorEl');
+  }
+  if (btn) { btn.disabled=false; btn.textContent='ASK AI →'; }
+};
+
+
+
+
+
+/* ══════════════════════════════════════════════════════════════
+   UX FIX PATCH — Clean user interactions
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Fix 3: Add "ASK THIS" hint when search is pre-filled by topic select ── */
+(function addAskHintStyle() {
+  const s = document.createElement('style');
+  s.textContent = `
+/* Subtle pulse on pre-filled search input to hint user can edit + ask */
+.search-input[data-suggested="1"] {
+  border-color: rgba(212,160,23,0.4) !important;
+  box-shadow: 0 0 0 3px rgba(212,160,23,0.08) !important;
+}
+/* Ask button pulse animation when question is ready */
+@keyframes askPulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(212,160,23,0.4); }
+  50%      { box-shadow: 0 0 0 6px rgba(212,160,23,0); }
+}
+.ask-btn.suggest-ready {
+  animation: askPulse 1.8s ease 3;
+}
+/* Topic zone intro card — shows before any AI ask */
+.tz-intro-card {
+  background: var(--bg2); border: 1px solid var(--b1);
+  border-radius: 12px; padding: 14px 16px; margin-bottom: 14px;
+  display: flex; align-items: flex-start; gap: 12px;
+}
+.tz-intro-icon { font-size: 1.8rem; flex-shrink:0; }
+.tz-intro-body { flex:1; }
+.tz-intro-title { font-size: 0.9rem; font-weight: 700; color: var(--tx); margin-bottom: 4px; }
+.tz-intro-desc  { font-size: 0.78rem; color: var(--tx2); line-height: 1.6; }
+.tz-intro-hint  {
+  margin-top: 10px; font-size: 0.72rem; color: var(--tx3);
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+}
+.tz-intro-hint kbd {
+  background: var(--bg3); border: 1px solid var(--b1); border-radius: 5px;
+  padding: 2px 7px; font-size: 0.65rem; color: var(--tx2);
+  font-family: 'JetBrains Mono', monospace;
+}
+  `;
+  document.head.appendChild(s);
+})();
+
+/* ── Fix 4: Show topic intro card instead of blank AI panel ── */
+(function patchSelectTopicForIntro() {
+  const _st = selectTopic;
+  selectTopic = function(topicId, title, desc, icon, sectionName) {
+    _st(topicId, title, desc, icon, sectionName);
+
+    // Clear previous answer so user sees topic content, not stale AI response
+    const ansCard = document.getElementById('answerCard');
+    const errEl   = document.getElementById('errorEl');
+    if (ansCard) ansCard.classList.remove('show');
+    if (errEl)   errEl.classList.remove('show');
+
+    // Show intro card in answer zone above tabs
+    const tz = document.getElementById('topicZone');
+    if (!tz) return;
+    const existingIntro = tz.querySelector('.tz-intro-card');
+    if (existingIntro) existingIntro.remove();
+
+    const meta = (typeof TOPIC_META !== 'undefined' && TOPIC_META[topicId]) || {};
+
+    const intro = document.createElement('div');
+    intro.className = 'tz-intro-card';
+    intro.innerHTML = `
+      <div class="tz-intro-icon">${icon}</div>
+      <div class="tz-intro-body">
+        <div class="tz-intro-title">${esc(title)}</div>
+        <div class="tz-intro-desc">${esc(desc)}</div>
+        <div class="tz-intro-hint">
+          ${meta.paper ? `<span>📋 ${esc(meta.paper)}</span>` : ''}
+          ${meta.time  ? `<span>⏱ ~${meta.time} min study</span>` : ''}
+          <span>Use the tabs above to study, then ask AI below when ready</span>
+          <kbd>Enter ↵</kbd>
+        </div>
+      </div>`;
+
+    // Insert after .tz-header if it exists, else at top
+    const header = tz.querySelector('.tz-header');
+    if (header) header.after(intro);
+    else tz.insertBefore(intro, tz.firstChild);
+
+    // Remove intro when user starts typing or asks
+    const inp = document.getElementById('searchInput');
+    if (inp) {
+      const removeIntro = () => { intro.style.opacity='0'; intro.style.transition='opacity 0.3s'; setTimeout(()=>intro.remove(),300); };
+      inp.addEventListener('focus', removeIntro, { once: true });
+    }
+
+    // Pulse ask button to hint
+    const btn = document.getElementById('askBtn');
+    if (btn) {
+      btn.classList.add('suggest-ready');
+      setTimeout(() => btn.classList.remove('suggest-ready'), 6000);
+    }
+
+    // Remove data-suggested on input so border clears when user edits
+    if (inp) {
+      inp.addEventListener('input', () => inp.removeAttribute('data-suggested'), { once: true });
+    }
+  };
+})();
+
+/* ── Fix 5: Clear stale answer when navigating to a different level ── */
+(function patchEnterLevelClear() {
+  const _el = enterLevel;
+  enterLevel = function(id) {
+    _el(id);
+    // Clear AI panel — user is in a new context
+    const ansCard = document.getElementById('answerCard');
+    const errEl   = document.getElementById('errorEl');
+    if (ansCard) ansCard.classList.remove('show');
+    if (errEl)   errEl.classList.remove('show');
+    const inp = document.getElementById('searchInput');
+    if (inp) { inp.value = ''; inp.removeAttribute('data-suggested'); }
+  };
+})();
+
+/* ── Fix 6: Don't auto-focus search on FAB tap — scroll only ── */
+/* FAB already fixed in btech_upgrade.js to scroll + focus,
+   but focus is only on explicit user tap so that's acceptable */
+
+/* ── Fix 7: Prevent double-ask if user hits Enter quickly on pre-fill ── */
+(function debounceAsk() {
+  let _lastAsk = 0;
+  const _da = doAsk;
+  doAsk = function() {
+    const now = Date.now();
+    if (now - _lastAsk < 800) return; // 800ms debounce
+    _lastAsk = now;
+    return _da.apply(this, arguments);
+  };
+})();
+
+console.log('%cMarineIQ UX Fix — auto-ask removed, intro cards active', 'color:#34d399');
+
 
 </script>
 </body>
