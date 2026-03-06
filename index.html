@@ -9252,6 +9252,931 @@ document.addEventListener('DOMContentLoaded', () => {
 console.log('%cMarineIQ Quiz v2 — levels + count selector + click fix + results screen', 'color:#d4a017;font-weight:bold');
 
 
+
+
+/* ══ UI OVERHAUL v8 ══ */
+/* ═══════════════════════════════════════════════════════════════════════
+   UI OVERHAUL v8 — Complete Design Refresh
+   • Comprehensive light mode (50+ overrides — every component)
+   • Improved dark mode depth, shadows, hover states
+   • Better typography hierarchy
+   • Polished cards, tabs, sidebar, topbar
+   • Smooth micro-interactions throughout
+   ═══════════════════════════════════════════════════════════════════════ */
+
+(function uiOverhaul() {
+const s = document.createElement('style');
+s.id = 'ui-overhaul-v8';
+s.textContent = `
+
+/* ══════════════════════════════════════════════════════════
+   DARK MODE — Depth + Polish Improvements
+   ══════════════════════════════════════════════════════════ */
+
+/* Better base backgrounds */
+body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+/* Topbar — refined */
+.topbar {
+  background: rgba(2,8,16,0.97) !important;
+  border-bottom: 1px solid rgba(212,160,23,0.18) !important;
+  box-shadow: 0 1px 20px rgba(0,0,0,0.4) !important;
+}
+.logo {
+  font-weight: 800 !important; letter-spacing: -0.01em !important;
+  font-size: 1.1rem !important;
+}
+.tbtn {
+  border: 1px solid var(--b1) !important;
+  border-radius: 8px !important;
+  transition: all 0.15s ease !important;
+  font-size: 0.62rem !important;
+  letter-spacing: 0.04em !important;
+  background: var(--bg2) !important;
+}
+.tbtn:hover {
+  border-color: var(--ac) !important;
+  color: var(--acL) !important;
+  background: rgba(212,160,23,0.06) !important;
+}
+
+/* Sidebar — better hierarchy */
+.sidebar {
+  background: var(--bg) !important;
+  border-right: 1px solid var(--b0) !important;
+  box-shadow: 4px 0 24px rgba(0,0,0,0.3) !important;
+}
+.sb-section {
+  font-size: 0.58rem !important;
+  letter-spacing: 0.12em !important;
+  color: var(--tx3) !important;
+  padding: 14px 14px 5px !important;
+  text-transform: uppercase !important;
+}
+.sb-topic {
+  padding: 9px 14px !important;
+  border-radius: 0 !important;
+  border-left: 3px solid transparent !important;
+  transition: all 0.12s !important;
+  font-size: 0.8rem !important;
+}
+.sb-topic:hover:not(.active) {
+  background: var(--bg2) !important;
+  border-left-color: var(--b2) !important;
+}
+.sb-topic.active {
+  background: rgba(212,160,23,0.07) !important;
+  border-left-color: var(--ac) !important;
+  color: var(--tx) !important;
+}
+
+/* ── Home screen cards — better depth ── */
+.stat-card {
+  background: var(--bg1) !important;
+  border: 1px solid var(--b0) !important;
+  border-radius: 14px !important;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease !important;
+}
+.stat-card:hover {
+  border-color: var(--b1) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3) !important;
+}
+.stat-num { font-size: 1.8rem !important; font-weight: 800 !important; }
+
+.continue-card {
+  border-radius: 14px !important;
+  transition: border-color 0.18s, box-shadow 0.18s, transform 0.18s !important;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.2) !important;
+}
+.continue-card:hover { transform: translateY(-2px) !important; }
+
+/* ── Rank cards — more depth ── */
+.rank-card {
+  border-radius: 16px !important;
+  border: 1px solid var(--b1) !important;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.25) !important;
+}
+
+/* ── Level page banner ── */
+.lp-banner {
+  box-shadow: 0 4px 32px rgba(0,0,0,0.3) !important;
+}
+
+/* ── Exam paper cards ── */
+.ep-card {
+  transition: border-color 0.15s, background 0.15s, transform 0.15s !important;
+}
+.ep-card:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.25) !important;
+}
+
+/* ── Multimodal tabs ── */
+.mm-tabs {
+  background: var(--bg2) !important;
+  border: 1px solid var(--b0) !important;
+  border-radius: 12px !important;
+  padding: 4px !important;
+}
+.mm-tab {
+  border-radius: 9px !important;
+  font-size: 0.74rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.02em !important;
+  transition: all 0.14s !important;
+}
+.mm-tab.active {
+  background: var(--bg4) !important;
+  color: var(--acL) !important;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.3) !important;
+}
+
+/* ── AI answer card ── */
+.answer-card {
+  border-radius: 16px !important;
+  border-color: var(--b0) !important;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.2) !important;
+}
+.ans-body {
+  font-size: 0.91rem !important;
+  line-height: 1.9 !important;
+}
+.ans-body code {
+  background: var(--bg3) !important;
+  border: 1px solid var(--b1) !important;
+  border-radius: 5px !important;
+  padding: 1px 6px !important;
+  font-size: 0.82em !important;
+  color: var(--acL) !important;
+}
+.ans-formula {
+  border-radius: 10px !important;
+  margin: 10px 0 !important;
+}
+
+/* ── Formula cards ── */
+.formula-card {
+  border-radius: 12px !important;
+  border: 1px solid var(--b0) !important;
+  transition: border-color 0.14s, box-shadow 0.14s !important;
+  background: var(--bg1) !important;
+}
+.formula-card:hover {
+  border-color: rgba(212,160,23,0.3) !important;
+  box-shadow: 0 4px 16px rgba(212,160,23,0.08) !important;
+}
+
+/* ── Flashcards ── */
+.flashcard-wrap {
+  border-radius: 16px !important;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.35) !important;
+}
+
+/* ── Video cards ── */
+.yt-card {
+  border-radius: 14px !important;
+  transition: border-color 0.14s, transform 0.14s, box-shadow 0.14s !important;
+}
+.yt-card:hover {
+  border-color: var(--b2) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.25) !important;
+}
+
+/* ── Diagram cards ── */
+.diag-card {
+  border-radius: 14px !important;
+  transition: border-color 0.14s, box-shadow 0.14s !important;
+}
+.diag-card:hover {
+  border-color: var(--b2) !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25) !important;
+}
+
+/* ── Year syllabus cards ── */
+.year-card {
+  border-radius: 14px !important;
+  transition: border-color 0.14s, box-shadow 0.14s !important;
+}
+.year-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.2) !important; }
+
+/* ── Modal ── */
+.modal-box {
+  border-radius: 20px !important;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.6) !important;
+}
+
+/* ── Search input ── */
+.search-input {
+  border-radius: 12px !important;
+  font-size: 0.9rem !important;
+}
+.search-wrap { border-radius: 12px !important; }
+
+/* ── Quiz options (dark) ── */
+.qv2-opt {
+  border-radius: 11px !important;
+  transition: border-color 0.12s, background 0.12s, transform 0.08s !important;
+}
+.qv2-opt:hover:not(.qv2-opt-done) {
+  transform: translateX(2px) !important;
+}
+
+/* ── Progress bars ── */
+.qv2-progress-bar, .qv2-results-bar {
+  border-radius: 4px !important;
+  background: linear-gradient(90deg, var(--ac), var(--acL)) !important;
+}
+
+/* ══════════════════════════════════════════════════════════
+   LIGHT MODE — Complete rebuild, every component
+   Clean maritime paper aesthetic: warm whites, navy ink, gold accents
+   ══════════════════════════════════════════════════════════ */
+
+body.light-mode {
+  /* ── Core palette ── */
+  --bg:   #f4f7fb;   /* warm off-white page */
+  --bg1:  #ffffff;   /* pure white cards */
+  --bg2:  #f0f4f8;   /* subtle tinted surface */
+  --bg3:  #e8edf5;   /* slightly deeper tint */
+  --bg4:  #dde4ef;   /* deepest light bg */
+
+  /* Borders — visible but gentle */
+  --b0: #dde4ee;
+  --b1: #c8d3e2;
+  --b2: #aab8cc;
+
+  /* Typography — deep navy ink */
+  --tx:  #0d1e35;
+  --tx2: #2c4a6a;
+  --tx3: #6680a0;
+
+  /* Accent — deep maritime gold (readable on light) */
+  --ac:  #b07d0a;
+  --acL: #c89010;
+  --acD: #8a6008;
+
+  /* Rank colors — kept vivid for contrast */
+  --cadet: #16a34a;
+  --c4:    #2563eb;
+  --c3:    #d97706;
+  --c2:    #db2777;
+  --c1:    #7c3aed;
+}
+
+/* ── Body background ── */
+body.light-mode { background: var(--bg) !important; }
+
+/* ── Topbar ── */
+body.light-mode .topbar {
+  background: rgba(255,255,255,0.97) !important;
+  border-bottom: 1px solid var(--b0) !important;
+  box-shadow: 0 1px 16px rgba(13,30,53,0.08) !important;
+}
+body.light-mode .logo { color: var(--tx) !important; }
+body.light-mode .logo em { color: var(--ac) !important; }
+body.light-mode .logo-anchor { color: var(--ac) !important; }
+
+/* ── Topbar buttons ── */
+body.light-mode .tbtn {
+  background: var(--bg2) !important;
+  border-color: var(--b1) !important;
+  color: var(--tx2) !important;
+}
+body.light-mode .tbtn:hover {
+  background: white !important;
+  border-color: var(--ac) !important;
+  color: var(--ac) !important;
+  box-shadow: 0 2px 8px rgba(176,125,10,0.15) !important;
+}
+body.light-mode .tbtn.on {
+  background: rgba(176,125,10,0.1) !important;
+  border-color: var(--ac) !important;
+  color: var(--ac) !important;
+}
+
+/* Breadcrumb */
+body.light-mode .breadcrumb { color: var(--tx3) !important; }
+body.light-mode .bc-item { color: var(--tx3) !important; }
+body.light-mode .bc-item.active { color: var(--tx) !important; }
+
+/* Mode toggle */
+body.light-mode .mode-toggle {
+  background: var(--bg3) !important;
+  border-color: var(--b1) !important;
+}
+body.light-mode .mode-toggle-knob {
+  background: var(--ac) !important;
+  transform: translateX(14px) !important;
+}
+
+/* Streak badge */
+body.light-mode .streak-badge {
+  background: rgba(176,125,10,0.08) !important;
+  border-color: rgba(176,125,10,0.25) !important;
+  color: var(--ac) !important;
+}
+
+/* ── Sidebar ── */
+body.light-mode .sidebar {
+  background: #ffffff !important;
+  border-right: 1px solid var(--b0) !important;
+  box-shadow: 4px 0 20px rgba(13,30,53,0.07) !important;
+}
+body.light-mode .sb-section { color: var(--tx3) !important; }
+body.light-mode .sb-section-badge {
+  background: var(--bg3) !important;
+  color: var(--tx3) !important;
+}
+body.light-mode .sb-topic {
+  color: var(--tx2) !important;
+  border-left-color: transparent !important;
+}
+body.light-mode .sb-topic:hover:not(.active) {
+  background: var(--bg2) !important;
+  color: var(--tx) !important;
+  border-left-color: var(--b1) !important;
+}
+body.light-mode .sb-topic.active {
+  background: rgba(176,125,10,0.07) !important;
+  border-left-color: var(--ac) !important;
+  color: var(--tx) !important;
+}
+body.light-mode .sb-topic .sb-diff-dot { opacity: 0.85 !important; }
+body.light-mode .sb-time-est,
+body.light-mode .sb-paper-tag { color: var(--tx3) !important; }
+body.light-mode .sb-bk-btn { color: var(--b2) !important; }
+body.light-mode .sb-bk-btn.bookmarked { color: var(--ac) !important; }
+
+/* Sidebar quick access */
+body.light-mode .sb-quick-section { border-bottom-color: var(--b0) !important; }
+body.light-mode .sb-recent-item {
+  background: var(--bg2) !important;
+  color: var(--tx2) !important;
+  border-color: var(--b0) !important;
+}
+body.light-mode .sb-recent-item:hover { background: var(--bg3) !important; color: var(--tx) !important; }
+
+/* Sidebar progress bar */
+body.light-mode .sb-progress-bar { background: var(--bg2) !important; border-top-color: var(--b0) !important; }
+body.light-mode .sb-prog-fill { background: var(--ac) !important; }
+body.light-mode .sb-prog-label { color: var(--tx3) !important; }
+
+/* ── Home screen ── */
+body.light-mode .home-screen { background: transparent !important; }
+body.light-mode .home-title { color: var(--tx) !important; }
+body.light-mode .home-title em {
+  background: linear-gradient(135deg, var(--ac), #2563eb);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+body.light-mode .home-sub { color: var(--tx2) !important; }
+body.light-mode .home-source-strip { background: var(--bg2) !important; border-color: var(--b0) !important; color: var(--tx3) !important; }
+body.light-mode .home-source-dot { background: var(--ac) !important; }
+
+/* ── Stat cards ── */
+body.light-mode .stat-card {
+  background: #ffffff !important;
+  border-color: var(--b0) !important;
+  box-shadow: 0 2px 12px rgba(13,30,53,0.07) !important;
+}
+body.light-mode .stat-card:hover {
+  box-shadow: 0 6px 24px rgba(13,30,53,0.12) !important;
+  border-color: var(--b1) !important;
+}
+body.light-mode .stat-num { color: var(--tx) !important; }
+body.light-mode .stat-label { color: var(--tx3) !important; }
+
+/* ── Continue card ── */
+body.light-mode .continue-card {
+  background: linear-gradient(135deg, #ffffff, var(--bg2)) !important;
+  border-color: var(--b0) !important;
+  box-shadow: 0 2px 16px rgba(13,30,53,0.08) !important;
+}
+body.light-mode .continue-card:hover {
+  border-color: var(--ac) !important;
+  box-shadow: 0 6px 24px rgba(176,125,10,0.12) !important;
+}
+body.light-mode .continue-title { color: var(--tx) !important; }
+body.light-mode .continue-meta  { color: var(--tx3) !important; }
+body.light-mode .continue-play  {
+  background: linear-gradient(135deg, var(--ac), var(--acD)) !important;
+  color: white !important;
+}
+
+/* ── Home tabs ── */
+body.light-mode .home-tab {
+  color: var(--tx3) !important;
+  border-color: var(--b0) !important;
+  background: white !important;
+}
+body.light-mode .home-tab.active {
+  color: var(--ac) !important;
+  border-color: var(--ac) !important;
+  background: rgba(176,125,10,0.06) !important;
+}
+
+/* ── Info cards ── */
+body.light-mode .info-card {
+  background: white !important;
+  border-color: var(--b0) !important;
+  box-shadow: 0 2px 12px rgba(13,30,53,0.06) !important;
+}
+body.light-mode .ic-title { color: var(--tx) !important; }
+body.light-mode .ic-text  { color: var(--tx2) !important; }
+
+/* ── Rank cards ── */
+body.light-mode .rank-card {
+  background: linear-gradient(145deg, #ffffff, var(--bg2)) !important;
+  border-color: var(--b0) !important;
+  box-shadow: 0 4px 20px rgba(13,30,53,0.08) !important;
+}
+body.light-mode .rank-card:hover {
+  box-shadow: 0 10px 36px rgba(13,30,53,0.14) !important;
+}
+body.light-mode .rc-number { color: var(--tx3) !important; }
+body.light-mode .rc-sub    { color: var(--tx2) !important; }
+body.light-mode .rc-elig-label { color: var(--tx3) !important; }
+
+/* ── Level page ── */
+body.light-mode .level-page { background: transparent !important; }
+body.light-mode .lp-banner  { box-shadow: 0 4px 28px rgba(13,30,53,0.12) !important; }
+body.light-mode .lp-stage   { opacity: 0.7 !important; }
+body.light-mode .lp-desc    { opacity: 0.88 !important; }
+
+body.light-mode .elig-item {
+  background: white !important;
+  border-color: var(--b0) !important;
+  color: var(--tx2) !important;
+  box-shadow: 0 1px 6px rgba(13,30,53,0.06) !important;
+}
+body.light-mode .ep-card {
+  background: white !important;
+  border-color: var(--b0) !important;
+  box-shadow: 0 2px 10px rgba(13,30,53,0.06) !important;
+}
+body.light-mode .ep-card:hover {
+  box-shadow: 0 6px 20px rgba(13,30,53,0.1) !important;
+}
+body.light-mode .ep-label { color: var(--tx3) !important; }
+body.light-mode .ep-title { color: var(--tx) !important; }
+body.light-mode .ep-sub   { color: var(--tx2) !important; }
+
+/* ── Multimodal tabs ── */
+body.light-mode .mm-tabs {
+  background: var(--bg2) !important;
+  border-color: var(--b0) !important;
+}
+body.light-mode .mm-tab { color: var(--tx3) !important; }
+body.light-mode .mm-tab:hover { color: var(--tx) !important; background: white !important; }
+body.light-mode .mm-tab.active {
+  background: white !important;
+  color: var(--ac) !important;
+  box-shadow: 0 1px 6px rgba(13,30,53,0.1) !important;
+}
+
+/* ── Topic zone header ── */
+body.light-mode .tz-header { border-bottom-color: var(--b0) !important; }
+body.light-mode .tz-complete-btn {
+  border-color: var(--b1) !important;
+  color: var(--tx3) !important;
+  background: white !important;
+}
+body.light-mode .tz-complete-btn.studied {
+  border-color: var(--cadet) !important;
+  color: var(--cadet) !important;
+  background: rgba(22,163,74,0.06) !important;
+}
+
+/* ── Topic intro card ── */
+body.light-mode .tz-intro-card {
+  background: white !important;
+  border-color: var(--b0) !important;
+  box-shadow: 0 2px 12px rgba(13,30,53,0.06) !important;
+}
+body.light-mode .tz-intro-title { color: var(--tx) !important; }
+body.light-mode .tz-intro-desc  { color: var(--tx2) !important; }
+body.light-mode .tz-intro-hint  { color: var(--tx3) !important; }
+body.light-mode .tz-intro-hint kbd {
+  background: var(--bg3) !important;
+  border-color: var(--b1) !important;
+  color: var(--tx2) !important;
+}
+
+/* ── Diagram cards ── */
+body.light-mode .diag-card {
+  background: white !important;
+  border-color: var(--b0) !important;
+  box-shadow: 0 2px 12px rgba(13,30,53,0.07) !important;
+}
+body.light-mode .diag-label {
+  background: var(--bg2) !important;
+  color: var(--tx3) !important;
+  border-top-color: var(--b0) !important;
+}
+body.light-mode .ai-diag-wrap {
+  background: white !important;
+  border-color: var(--b0) !important;
+  box-shadow: 0 2px 12px rgba(13,30,53,0.07) !important;
+}
+body.light-mode .ai-diag-placeholder {
+  background: linear-gradient(135deg, white, var(--bg2)) !important;
+}
+body.light-mode .adp-title { color: var(--tx) !important; }
+body.light-mode .adp-text  { color: var(--tx2) !important; }
+body.light-mode .ai-diag-footer {
+  background: var(--bg2) !important;
+  border-top-color: var(--b0) !important;
+}
+body.light-mode .ai-diag-label { color: var(--tx3) !important; }
+body.light-mode .ai-diag-act {
+  background: white !important;
+  border-color: var(--b1) !important;
+  color: var(--tx3) !important;
+}
+body.light-mode .ai-diag-act:hover { border-color: var(--ac) !important; color: var(--ac) !important; }
+
+/* ── Video cards ── */
+body.light-mode .yt-card {
+  background: white !important;
+  border-color: var(--b0) !important;
+  box-shadow: 0 2px 10px rgba(13,30,53,0.06) !important;
+}
+body.light-mode .yt-card:hover { box-shadow: 0 6px 20px rgba(13,30,53,0.1) !important; }
+body.light-mode .yt-title   { color: var(--tx) !important; }
+body.light-mode .yt-channel { color: var(--tx3) !important; }
+body.light-mode .yt-thumb   { background: var(--bg3) !important; }
+body.light-mode .yt-play    { background: #dc2626 !important; }
+
+/* ── Formula cards ── */
+body.light-mode .formula-card,
+body.light-mode .fc-card {
+  background: white !important;
+  border-color: var(--b0) !important;
+  box-shadow: 0 2px 10px rgba(13,30,53,0.06) !important;
+}
+body.light-mode .formula-card:hover {
+  border-color: rgba(176,125,10,0.3) !important;
+  box-shadow: 0 6px 20px rgba(176,125,10,0.08) !important;
+}
+body.light-mode .fc-label  { color: var(--tx) !important; }
+body.light-mode .fc-eq     { color: var(--ac) !important; }
+body.light-mode .fc-note   { color: var(--tx3) !important; }
+
+/* ── Flashcards ── */
+body.light-mode .flashcard-wrap {
+  box-shadow: 0 8px 40px rgba(13,30,53,0.15) !important;
+}
+body.light-mode .fc-front {
+  background: white !important;
+  border-color: var(--b0) !important;
+  color: var(--tx) !important;
+}
+body.light-mode .fc-back {
+  background: linear-gradient(135deg, #fffbf0, var(--bg2)) !important;
+  border-color: rgba(176,125,10,0.2) !important;
+  color: var(--tx) !important;
+}
+body.light-mode .fc-header {
+  background: var(--bg2) !important;
+  border-bottom-color: var(--b0) !important;
+  color: var(--tx3) !important;
+}
+body.light-mode .fc-ctrl-btn {
+  background: white !important;
+  border-color: var(--b0) !important;
+  color: var(--tx2) !important;
+}
+body.light-mode .fc-ctrl-btn:hover { border-color: var(--ac) !important; color: var(--ac) !important; }
+body.light-mode .fc-question { color: var(--tx) !important; }
+body.light-mode .fc-answer   { color: var(--tx2) !important; }
+body.light-mode .fc-prog-label { color: var(--tx3) !important; }
+
+/* ── AI Search section ── */
+body.light-mode .ai-section { background: transparent !important; }
+body.light-mode .model-pill {
+  background: white !important;
+  border-color: var(--b0) !important;
+  color: var(--tx2) !important;
+  box-shadow: 0 1px 4px rgba(13,30,53,0.06) !important;
+}
+body.light-mode .model-pill:hover { border-color: var(--b1) !important; }
+body.light-mode .model-pill.active {
+  border-color: var(--ac) !important;
+  background: rgba(176,125,10,0.06) !important;
+}
+body.light-mode .model-pill.active .mp-name { color: var(--ac) !important; }
+body.light-mode .mp-sub { color: var(--tx3) !important; }
+
+body.light-mode .search-wrap {
+  background: white !important;
+  border-color: var(--b1) !important;
+  box-shadow: 0 2px 12px rgba(13,30,53,0.08) !important;
+}
+body.light-mode .search-input {
+  background: transparent !important;
+  color: var(--tx) !important;
+}
+body.light-mode .search-input::placeholder { color: var(--tx3) !important; }
+body.light-mode .search-input:focus {
+  border-color: var(--ac) !important;
+  box-shadow: 0 0 0 3px rgba(176,125,10,0.1) !important;
+}
+
+/* ── Answer card ── */
+body.light-mode .answer-card {
+  background: white !important;
+  border-color: var(--b0) !important;
+  box-shadow: 0 4px 24px rgba(13,30,53,0.1) !important;
+}
+body.light-mode .ans-header {
+  background: var(--bg2) !important;
+  border-bottom-color: var(--b0) !important;
+}
+body.light-mode .ans-query  { color: var(--tx2) !important; }
+body.light-mode .ans-body   { color: var(--tx) !important; }
+body.light-mode .ans-body code {
+  background: var(--bg3) !important;
+  border-color: var(--b1) !important;
+  color: var(--ac) !important;
+}
+body.light-mode .ans-formula {
+  background: rgba(176,125,10,0.05) !important;
+  border-color: var(--b0) !important;
+  border-left-color: var(--ac) !important;
+}
+body.light-mode .ans-formula-label { color: var(--ac) !important; }
+body.light-mode .ans-note   { color: var(--tx3) !important; }
+body.light-mode .ans-actions { border-top-color: var(--b0) !important; }
+body.light-mode .action-btn { color: var(--tx3) !important; border-color: var(--b1) !important; }
+body.light-mode .action-btn:hover { color: var(--tx) !important; border-color: var(--b2) !important; }
+body.light-mode .action-btn.primary {
+  background: linear-gradient(135deg, var(--ac), var(--acD)) !important;
+  color: white !important;
+  border-color: var(--ac) !important;
+}
+
+/* Error/thinking panels */
+body.light-mode .thinking-wrap {
+  background: var(--bg2) !important;
+  border-color: var(--b0) !important;
+}
+body.light-mode .think-label { color: var(--tx2) !important; }
+body.light-mode .think-detail { color: var(--tx3) !important; }
+body.light-mode #errorEl {
+  background: rgba(220,38,38,0.04) !important;
+  border-color: rgba(220,38,38,0.2) !important;
+}
+body.light-mode #errorMsg { color: #991b1b !important; }
+
+/* ── Quiz v2 ── */
+body.light-mode .quiz-v2-wrap {
+  background: white !important;
+  border-color: var(--b0) !important;
+  box-shadow: 0 2px 16px rgba(13,30,53,0.08) !important;
+}
+body.light-mode .qv2-setup-title { color: var(--tx) !important; }
+body.light-mode .qv2-setting-label { color: var(--tx3) !important; }
+body.light-mode .qv2-chip {
+  background: white !important;
+  border-color: var(--b1) !important;
+  color: var(--tx2) !important;
+}
+body.light-mode .qv2-chip:hover { border-color: var(--ac) !important; color: var(--ac) !important; }
+body.light-mode .qv2-chip-active {
+  border-color: var(--ac) !important;
+  background: rgba(176,125,10,0.07) !important;
+  color: var(--ac) !important;
+}
+body.light-mode .qv2-setup-note { color: var(--tx3) !important; }
+body.light-mode .qv2-loading-label { color: var(--tx) !important; }
+body.light-mode .qv2-loading-sub   { color: var(--tx3) !important; }
+body.light-mode .qv2-q-text  { color: var(--tx) !important; }
+body.light-mode .qv2-qnum    { color: var(--tx3) !important; }
+body.light-mode .qv2-diff-badge { background: var(--bg2) !important; border-color: var(--b1) !important; color: var(--tx2) !important; }
+body.light-mode .qv2-opt {
+  background: var(--bg2) !important;
+  border-color: var(--b0) !important;
+}
+body.light-mode .qv2-opt:hover:not(.qv2-opt-done) {
+  background: white !important;
+  border-color: var(--ac) !important;
+  box-shadow: 0 2px 8px rgba(176,125,10,0.1) !important;
+}
+body.light-mode .qv2-opt-letter {
+  background: white !important;
+  border-color: var(--b1) !important;
+  color: var(--tx3) !important;
+}
+body.light-mode .qv2-opt-text { color: var(--tx2) !important; }
+body.light-mode .qv2-opt:hover:not(.qv2-opt-done) .qv2-opt-text { color: var(--tx) !important; }
+body.light-mode .qv2-opt.qv2-opt-correct { background: rgba(22,163,74,0.07) !important; }
+body.light-mode .qv2-opt.qv2-opt-wrong   { background: rgba(220,38,38,0.05) !important; }
+body.light-mode .qv2-explanation {
+  background: rgba(176,125,10,0.05) !important;
+  border-color: rgba(176,125,10,0.2) !important;
+}
+body.light-mode .qv2-exp-label { color: var(--ac) !important; }
+body.light-mode .qv2-exp-text  { color: var(--tx2) !important; }
+body.light-mode .qv2-nav-btn { background: white !important; border-color: var(--b1) !important; color: var(--tx2) !important; }
+body.light-mode .qv2-results { background: transparent !important; }
+body.light-mode .qv2-results-score { color: var(--tx) !important; }
+body.light-mode .qv2-results-bar-wrap { background: var(--bg3) !important; }
+body.light-mode .qv2-results-msg { color: var(--tx2) !important; }
+body.light-mode .qv2-wrong-title { color: var(--tx3) !important; border-bottom-color: var(--b0) !important; }
+body.light-mode .qv2-wrong-item { background: var(--bg2) !important; border-color: var(--b0) !important; }
+body.light-mode .qv2-wrong-q   { color: var(--tx) !important; }
+body.light-mode .qv2-wrong-exp { color: var(--tx3) !important; }
+
+/* ── Year syllabus ── */
+body.light-mode .year-card {
+  background: white !important;
+  border-color: var(--b0) !important;
+  box-shadow: 0 2px 12px rgba(13,30,53,0.07) !important;
+}
+body.light-mode .year-header { border-bottom-color: var(--b0) !important; }
+body.light-mode .year-title  { color: var(--tx) !important; }
+body.light-mode .year-sub    { color: var(--tx3) !important; }
+body.light-mode .subject-row { border-bottom-color: var(--b0) !important; }
+body.light-mode .subject-name { color: var(--tx) !important; }
+body.light-mode .subject-code { color: var(--tx3) !important; }
+body.light-mode .subject-tag  { background: var(--bg3) !important; border-color: var(--b1) !important; color: var(--tx3) !important; }
+body.light-mode .year-milestone { background: rgba(22,163,74,0.06) !important; border-color: rgba(22,163,74,0.2) !important; color: #15803d !important; }
+body.light-mode .year-exam-note { background: rgba(176,125,10,0.05) !important; border-color: rgba(176,125,10,0.2) !important; color: #92400e !important; }
+
+/* ── Global search overlay ── */
+body.light-mode .global-search-overlay { background: rgba(13,30,53,0.5) !important; backdrop-filter: blur(6px) !important; }
+body.light-mode .gs-box {
+  background: white !important;
+  border-color: var(--b1) !important;
+  box-shadow: 0 24px 60px rgba(13,30,53,0.2) !important;
+}
+body.light-mode .gs-input { background: white !important; color: var(--tx) !important; border-color: var(--b0) !important; }
+body.light-mode .gs-input::placeholder { color: var(--tx3) !important; }
+body.light-mode .gs-result { border-bottom-color: var(--b0) !important; }
+body.light-mode .gs-result:hover,
+body.light-mode .gs-result.selected { background: var(--bg2) !important; }
+body.light-mode .gs-r-title { color: var(--tx) !important; }
+body.light-mode .gs-r-sub   { color: var(--tx3) !important; }
+body.light-mode .gs-r-diff  { opacity: 0.85 !important; }
+
+/* ── Notes drawer ── */
+body.light-mode .notes-drawer {
+  background: white !important;
+  border-left-color: var(--b0) !important;
+  box-shadow: -8px 0 32px rgba(13,30,53,0.12) !important;
+}
+body.light-mode .nd-header { border-bottom-color: var(--b0) !important; color: var(--tx) !important; }
+body.light-mode .nd-note   { background: var(--bg2) !important; border-color: var(--b0) !important; color: var(--tx2) !important; }
+body.light-mode .nd-textarea {
+  background: var(--bg2) !important;
+  border-color: var(--b0) !important;
+  color: var(--tx) !important;
+}
+
+/* ── Modal ── */
+body.light-mode .modal-overlay { background: rgba(13,30,53,0.4) !important; }
+body.light-mode .modal-box {
+  background: white !important;
+  border-color: var(--b0) !important;
+  box-shadow: 0 24px 80px rgba(13,30,53,0.2) !important;
+}
+body.light-mode .modal-title  { color: var(--tx) !important; }
+body.light-mode .provider-card { background: var(--bg2) !important; border-color: var(--b0) !important; }
+body.light-mode .provider-card:hover { background: white !important; border-color: var(--ac) !important; }
+body.light-mode .provider-card.selected { border-color: var(--ac) !important; background: rgba(176,125,10,0.06) !important; }
+body.light-mode .pc-name { color: var(--tx) !important; }
+body.light-mode .pc-free { color: var(--cadet) !important; }
+body.light-mode .modal-input {
+  background: var(--bg2) !important;
+  border-color: var(--b1) !important;
+  color: var(--tx) !important;
+}
+body.light-mode .modal-input:focus { border-color: var(--ac) !important; }
+body.light-mode .modal-save {
+  background: linear-gradient(135deg, var(--ac), var(--acD)) !important;
+  color: white !important;
+  border-color: var(--ac) !important;
+}
+body.light-mode .setup-step { color: var(--tx2) !important; }
+body.light-mode .step-num { background: rgba(176,125,10,0.1) !important; color: var(--ac) !important; border-color: rgba(176,125,10,0.3) !important; }
+
+/* ── Topic nav footer ── */
+body.light-mode .topic-nav-footer { border-top-color: var(--b0) !important; background: var(--bg2) !important; }
+body.light-mode .tnf-btn { background: white !important; border-color: var(--b0) !important; color: var(--tx2) !important; }
+body.light-mode .tnf-btn:hover { border-color: var(--ac) !important; color: var(--ac) !important; }
+body.light-mode .tnf-label { color: var(--tx3) !important; }
+body.light-mode .tnf-title { color: var(--tx) !important; }
+
+/* ── Scrollbar in light mode ── */
+body.light-mode ::-webkit-scrollbar-track { background: var(--bg2); }
+body.light-mode ::-webkit-scrollbar-thumb { background: var(--b1); }
+body.light-mode ::-webkit-scrollbar-thumb:hover { background: var(--ac); }
+
+/* ── Floating action button ── */
+body.light-mode #fabAsk {
+  box-shadow: 0 4px 20px rgba(176,125,10,0.3) !important;
+}
+
+/* ══════════════════════════════════════════════════════════
+   TRANSITION — smooth between modes
+   ══════════════════════════════════════════════════════════ */
+body, .topbar, .sidebar, .rank-card, .stat-card, .answer-card,
+.formula-card, .yt-card, .diag-card, .ep-card, .continue-card,
+.year-card, .modal-box, .qv2-opt, .mm-tab, .sb-topic,
+.search-wrap, .ai-diag-wrap, .flashcard-wrap, .quiz-v2-wrap {
+  transition-property: background, border-color, color, box-shadow !important;
+  transition-duration: 0.25s !important;
+  transition-timing-function: ease !important;
+}
+
+/* ══════════════════════════════════════════════════════════
+   BETTER LIGHT MODE TOGGLE BUTTON
+   ══════════════════════════════════════════════════════════ */
+.mode-toggle {
+  width: 46px !important; height: 26px !important;
+  border-radius: 13px !important;
+  cursor: pointer !important;
+  position: relative !important;
+  background: var(--bg3) !important;
+  border: 1px solid var(--b1) !important;
+  transition: background 0.25s, border-color 0.25s !important;
+  flex-shrink: 0 !important;
+}
+.mode-toggle-knob {
+  width: 18px !important; height: 18px !important;
+  border-radius: 50% !important;
+  position: absolute !important;
+  top: 3px !important; left: 3px !important;
+  background: var(--tx3) !important;
+  transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1), background 0.25s !important;
+}
+body.light-mode .mode-toggle {
+  background: #e0f0ff !important;
+  border-color: #acd3f0 !important;
+}
+body.light-mode .mode-toggle-knob {
+  transform: translateX(20px) !important;
+  background: #f59e0b !important;
+}
+
+/* ── Toggle icons via pseudo-elements ── */
+.mode-toggle::before { content: '🌙'; position: absolute; right: 3px; top: 3px; font-size: 11px; line-height: 18px; pointer-events: none; }
+body.light-mode .mode-toggle::before { content: '☀️'; left: 3px; right: auto; }
+
+/* ══════════════════════════════════════════════════════════
+   GLOBAL MICRO-IMPROVEMENTS
+   ══════════════════════════════════════════════════════════ */
+
+/* Better focus rings */
+button:focus-visible, input:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--ac) !important;
+  outline-offset: 2px !important;
+}
+
+/* Smoother page transitions */
+.home-screen, .level-page { animation-duration: 0.3s !important; }
+
+/* Better text selection */
+::selection { background: rgba(212,160,23,0.25); color: var(--tx); }
+body.light-mode ::selection { background: rgba(176,125,10,0.2); }
+
+/* Code blocks in answers */
+.ans-body pre {
+  background: var(--bg2) !important;
+  border: 1px solid var(--b1) !important;
+  border-radius: 10px !important;
+  padding: 14px !important;
+  overflow-x: auto !important;
+  font-size: 0.82rem !important;
+}
+body.light-mode .ans-body pre { background: var(--bg2) !important; }
+
+/* Better link styling in answers */
+.ans-body a { color: var(--acL) !important; text-decoration: underline; text-underline-offset: 3px; }
+body.light-mode .ans-body a { color: var(--ac) !important; }
+
+/* ── Source strip improvement ── */
+.home-source-strip {
+  display: flex !important; align-items: center !important;
+  gap: 8px !important; flex-wrap: wrap !important;
+  justify-content: center !important;
+  background: var(--bg2) !important;
+  border: 1px solid var(--b0) !important;
+  border-radius: 30px !important;
+  padding: 6px 16px !important;
+  font-size: 0.62rem !important;
+  letter-spacing: 0.04em !important;
+  width: fit-content !important;
+  margin: 12px auto 0 !important;
+}
+
+`;
+document.head.appendChild(s);
+})();
+
+
 </script>
 </body>
 </html>
