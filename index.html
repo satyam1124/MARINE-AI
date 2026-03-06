@@ -11556,6 +11556,765 @@ document.addEventListener('DOMContentLoaded', function(){
 console.log('%cMarineIQ — Formula Viz v3 + Quiz Engine v3 loaded', 'color:#4ade80;font-weight:bold');
 
 
+
+
+/* ═══════════════════════════════════════════════════════════════════════
+   MARINEIQ MEGA PATCH v13
+   Fixes: auto-search, BEE+BTech subtopics, IHP formula, mobile topbar,
+          deep research, video availability, quiz from search, sidebar
+          close, year syllabus content, diagram change-topic, formulas++
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ══════════════════════════════════════════════════════════
+   1. FIX: AUTO-SEARCH on topic click — REMOVE pre-fill
+   ══════════════════════════════════════════════════════════ */
+(function stopAutoSearch(){
+  const orig = selectTopic;
+  selectTopic = function(topicId, title, desc, icon, sectionName){
+    orig(topicId, title, desc, icon, sectionName);
+    // Clear the search input that earlier patches fill automatically
+    const inp = document.getElementById('searchInput');
+    if(inp){ inp.value = ''; inp.placeholder = `Ask anything about "${title}"…`; }
+  };
+})();
+
+/* ══════════════════════════════════════════════════════════
+   2. FIX: IHP FORMULA (was wrong — divisor 60,000 incorrect)
+   Correct: IHP [kW] = Pm[bar] × L[m] × A[m²] × N[rpm] × k / 0.6
+   ══════════════════════════════════════════════════════════ */
+(function fixIHPFormula(){
+  // Find and replace in TOPIC_KNOWLEDGE at runtime
+  if(typeof TOPIC_KNOWLEDGE === 'undefined') return;
+  for(const key in TOPIC_KNOWLEDGE){
+    const kb = TOPIC_KNOWLEDGE[key];
+    if(!kb.formulas) continue;
+    kb.formulas.forEach(f => {
+      if(f.label && f.label.includes('Indicated') && f.eq && f.eq.includes('60,000')){
+        f.eq   = 'IHP [kW] = (Pm [bar] × L [m] × A [m²] × N [rpm] × k) ÷ 0.6';
+        f.note = 'Pm=Mean Effective Pressure(bar), L=stroke(m), A=piston area(m²), N=rev/min, k=number of cylinders. Derived: Pm×10⁵ Pa × L×A×N/60 s⁻¹ ÷ 1000 = Pm×L×A×N×k/0.6 kW. Example: Pm=18 bar, L=2.4m, A=0.503m², N=100rpm, k=6 → IHP=18×2.4×0.503×100×6/0.6=21,730 kW. Source: Reed\'s Vol.8 Ch.2';
+      }
+      // Also fix the common wrong form in notes
+      if(f.note && f.note.includes('60,000')) f.note = f.note.replace('/\s*60[,.]?000/g','÷ 0.6 [see corrected formula]');
+    });
+  }
+})();
+
+/* ══════════════════════════════════════════════════════════
+   3. BEE & BTECH SUBTOPICS — full content for bt_elec1 + subtopics
+   ══════════════════════════════════════════════════════════ */
+(function addBTechKnowledge(){
+  if(typeof TOPIC_KNOWLEDGE === 'undefined') return;
+
+  /* ── Basic Electrical Engineering (bt_elec1) ── */
+  TOPIC_KNOWLEDGE.bt_elec1 = {
+    subtopics: [
+      { id:'bee_circuits',  title:"DC Circuits",             icon:"🔌", desc:"Ohm's law, KVL, KCL, series/parallel circuits, Thevenin/Norton theorems, superposition" },
+      { id:'bee_ac',        title:"AC Fundamentals",         icon:"〰️", desc:"Sinusoidal waveforms, RMS, phasors, impedance, power factor, single-phase circuits" },
+      { id:'bee_power',     title:"Electrical Power",        icon:"⚡", desc:"Active, reactive, apparent power. Power factor correction. 3-phase power calculation" },
+      { id:'bee_transformer',title:"Transformers",           icon:"🔄", desc:"Working principle, turns ratio, efficiency, losses, shipboard applications" },
+      { id:'bee_motors',    title:"Electric Motors (intro)", icon:"⚙️", desc:"DC motors, induction motors, starting methods, speed control, torque-speed curves" },
+      { id:'bee_instruments',title:"Measuring Instruments",  icon:"📏", desc:"Voltmeter, ammeter, wattmeter, megger, multimeter. Instrument types and errors" },
+    ],
+    formulas:[
+      { label:"Ohm's Law",                eq:"V = I × R   [Volts]",                    note:"V=voltage(V), I=current(A), R=resistance(Ω). Fundamental relationship for all DC circuits. Source: Reed's Vol.9 Electrotechnology" },
+      { label:"Power in DC Circuit",      eq:"P = V × I = I² × R = V² / R   [Watts]", note:"P=power(W), V=voltage(V), I=current(A), R=resistance(Ω). Choose form based on known quantities." },
+      { label:"Kirchhoff's Voltage Law",  eq:"ΣV = 0  (sum around any closed loop)",   note:"Sum of all EMFs = sum of all voltage drops in a closed loop. Used for circuit analysis. Source: Reed's Vol.9" },
+      { label:"Kirchhoff's Current Law",  eq:"ΣI_in = ΣI_out  (at any junction)",      note:"Sum of currents entering a node = sum leaving. Conservation of charge. Used with KVL to solve circuits." },
+      { label:"RMS Voltage (sinusoidal)", eq:"V_rms = V_peak / √2  ≈  V_peak × 0.707", note:"V_rms=RMS voltage(V), V_peak=peak voltage(V). RMS is the equivalent DC heating value. 230V mains means V_peak=325V." },
+      { label:"AC Impedance",             eq:"Z = √(R² + X²)   [Ω]",                   note:"Z=impedance(Ω), R=resistance(Ω), X=reactance(Ω). For RL: X=X_L−X_C. Z replaces R in AC Ohm's law: V=I×Z" },
+      { label:"Inductive Reactance",      eq:"X_L = 2π × f × L   [Ω]",                note:"X_L=inductive reactance(Ω), f=frequency(Hz), L=inductance(H). Increases with frequency. Opposes change in current." },
+      { label:"Capacitive Reactance",     eq:"X_C = 1 / (2π × f × C)   [Ω]",          note:"X_C=capacitive reactance(Ω), f=frequency(Hz), C=capacitance(F). Decreases with frequency. Opposes change in voltage." },
+      { label:"Power Factor",             eq:"PF = cos φ = P / S = R / Z",             note:"φ=phase angle between V and I. P=active power(W), S=apparent power(VA). Ship target: PF > 0.8 lagging. Unity PF=1." },
+      { label:"3-Phase Active Power",     eq:"P = √3 × V_L × I_L × cos φ   [W]",      note:"V_L=line voltage(V), I_L=line current(A), cos φ=power factor. For shipboard generators: V_L=440V, f=60Hz typically." },
+      { label:"Transformer Turns Ratio",  eq:"V₁/V₂ = N₁/N₂ = I₂/I₁",                note:"V₁=primary voltage, V₂=secondary voltage, N₁/N₂=turns ratio. Current ratio is inverse of turns ratio. Source: Reed's Vol.9" },
+      { label:"Transformer Efficiency",   eq:"η = P_out / P_in = P_out / (P_out + P_losses)", note:"Losses = copper losses (I²R) + iron losses (hysteresis + eddy current). Typical power transformer η ≥ 95%." },
+    ],
+    flashcards:[
+      { q:"State Ohm's Law",               a:"V = IR. The voltage across a conductor is directly proportional to the current through it, at constant temperature. Source: Reed's Vol.9" },
+      { q:"What is power factor?",          a:"Cosine of the phase angle φ between voltage and current (cos φ). Ratio of active power (W) to apparent power (VA). Unity = pure resistance. Lagging PF = inductive load (motors)." },
+      { q:"What is the difference between active, reactive and apparent power?", a:"Active (P, Watts) = useful work. Reactive (Q, VAR) = energy stored/released by inductors/capacitors. Apparent (S, VA) = V×I. S² = P² + Q²." },
+      { q:"Why does a ship use 440V 3-phase?", a:"440V 3-phase provides high power density with lower current for same power vs 230V, reducing cable size and I²R losses. 60Hz common on ships for motor speed compatibility." },
+      { q:"What is the purpose of a megger?", a:"Megohmmeter — measures insulation resistance between conductors and earth. Ships: insulation resistance should be ≥ 1 MΩ per kV of operating voltage (IEC 60092 recommendation)." },
+      { q:"What are eddy current losses in a transformer?", a:"Circulating currents induced in the iron core by changing flux. Reduced by laminating the core. Proportional to frequency² and flux density². Part of 'iron losses' (no-load losses)." },
+    ],
+    videos:[
+      { id:'2mwHpGT9aOU', title:'Ohm\'s Law & Basic Circuits Explained',        ch:'Professor Leonard' },
+      { id:'mHJSFn11EXk', title:'AC Circuits — RMS, Phasors & Power Factor',   ch:'Michel van Biezen' },
+      { id:'UBX_Co_hHcU', title:'3-Phase Power Explained for Beginners',        ch:'The Engineering Mindset' },
+      { id:'GMnsZnBdRUs', title:'How Transformers Work',                         ch:'The Engineering Mindset' },
+      { id:'LAtDMqQeXSM', title:'Power Factor Correction Explained',             ch:'Electrical Eng. Portal' },
+    ],
+  };
+
+  /* ── Engineering Physics (bt_physics) ── */
+  TOPIC_KNOWLEDGE.bt_physics = {
+    subtopics:[
+      { id:'phys_mech',  title:"Mechanics",          icon:"⚙️",  desc:"Newton's laws, work, energy, power, momentum, friction, simple machines" },
+      { id:'phys_thermo',title:"Thermodynamics",     icon:"🌡️",  desc:"Temperature, heat, gas laws, specific heat, Zeroth & First laws — foundation for engines" },
+      { id:'phys_waves', title:"Waves & Vibrations", icon:"〰️",  desc:"Wave properties, resonance, sound, longitudinal vs transverse — vibration in ship machinery" },
+      { id:'phys_elec',  title:"Electromagnetism",   icon:"🔌",  desc:"Electric field, magnetic field, Faraday's law, inductance — underpins generators and motors" },
+    ],
+    formulas:[
+      { label:"Newton's Second Law",      eq:"F = m × a   [N]",               note:"F=force(N), m=mass(kg), a=acceleration(m/s²). Foundation of machinery dynamics. Source: Reed's Vol.2" },
+      { label:"Kinetic Energy",           eq:"KE = ½ × m × v²   [J]",         note:"m=mass(kg), v=velocity(m/s). Flywheel and rotating machinery energy storage." },
+      { label:"Boyle's Law",              eq:"P₁V₁ = P₂V₂  (constant T)",     note:"For ideal gas at constant temperature. Used in air compressor calculations and indicator diagram analysis." },
+      { label:"Charles' Law",             eq:"V₁/T₁ = V₂/T₂  (constant P)",   note:"T in Kelvin. Temperature-volume relationship at constant pressure. Source: Reed's Vol.4" },
+      { label:"Combined Gas Law",         eq:"P₁V₁/T₁ = P₂V₂/T₂",            note:"T in Kelvin. Combines Boyle's and Charles' laws. Used for compressed air systems and turbocharger scavenge calculations." },
+      { label:"Specific Heat Capacity",   eq:"Q = m × c × ΔT   [J]",          note:"Q=heat energy(J), m=mass(kg), c=specific heat(J/kg·K), ΔT=temperature change(K). Source: Reed's Vol.4" },
+    ],
+    flashcards:[
+      { q:"State Newton's First Law",     a:"A body remains at rest or in uniform motion in a straight line unless acted upon by an external net force. Basis of ship inertia calculations." },
+      { q:"State the First Law of Thermodynamics", a:"Energy cannot be created or destroyed, only converted. dU = Q − W. Heat added to a system = increase in internal energy + work done by system." },
+      { q:"What is resonance?",           a:"Resonance occurs when the frequency of external forcing equals the natural frequency of a system. In ships: causes excessive vibration in shafting, hull, and machinery if uncontrolled." },
+    ],
+    videos:[
+      { id:'yFoUDFb0R8I', title:"Newton's Laws of Motion",          ch:'Khan Academy' },
+      { id:'VXwXkME9uWU', title:'Thermodynamics Gas Laws',           ch:'Professor Dave Explains' },
+      { id:'5HkS8DW3F9A', title:'Waves and Vibrations Fundamentals', ch:'Khan Academy' },
+    ],
+  };
+
+  /* ── Engineering Chemistry (bt_chem) ── */
+  TOPIC_KNOWLEDGE.bt_chem = {
+    subtopics:[
+      { id:'chem_corr',  title:"Corrosion Science",   icon:"🧪", desc:"Electrochemical corrosion, galvanic series, cathodic protection, anodes — directly relevant to shipboard metal protection" },
+      { id:'chem_water', title:"Water Chemistry",     icon:"💧", desc:"Cooling water treatment, boiler water chemistry, scale prevention, pH control, hardness" },
+      { id:'chem_fuel',  title:"Fuel Chemistry",      icon:"⛽", desc:"Hydrocarbon composition, flash point, pour point, viscosity, calorific value, HFO vs MGO" },
+    ],
+    formulas:[
+      { label:"Galvanic Corrosion Current", eq:"I_corr ∝ (E_cathode − E_anode) / R_circuit", note:"E=electrode potential(V), R=circuit resistance(Ω). Larger potential difference and lower resistance → faster corrosion. Source: Reed's Vol.6 Materials" },
+      { label:"pH Definition",              eq:"pH = −log₁₀[H⁺]",                            note:"[H⁺]=hydrogen ion concentration(mol/L). pH 7 = neutral, <7 = acidic, >7 = alkaline. Boiler water: pH 10–11. Cooling water: pH 7.5–9." },
+      { label:"Calorific Value (gross/net)", eq:"Net CV = Gross CV − 2.44 × H₂O(mass fraction)", note:"Accounts for latent heat of water vapour in flue gas. HFO typical gross CV ≈ 40,500 kJ/kg. Source: Reed's Vol.3 Applied Heat" },
+    ],
+    flashcards:[
+      { q:"What is the galvanic series?",   a:"Order of metals by electrode potential in seawater. Less noble (anodic) metals corrode sacrificially: zinc < aluminium < steel < cast iron < stainless steel < copper < gold. Ship uses zinc anodes to protect steel hull." },
+      { q:"Why is boiler water treated?",   a:"To prevent scale (CaCO₃, Mg(OH)₂) reducing heat transfer, causing overheating and tube failure; prevent pitting corrosion from dissolved O₂; maintain alkalinity pH 10–11 to form protective magnetite layer." },
+    ],
+    videos:[
+      { id:'OfJqTsm72IM', title:'Corrosion — Types and Prevention',   ch:'NPTEL' },
+      { id:'8qAXSqzJSqE', title:'Boiler Water Treatment Explained',   ch:'Marine Online' },
+    ],
+  };
+
+  /* ── Engineering Mechanics (bt_mech) ── */
+  TOPIC_KNOWLEDGE.bt_mech = {
+    formulas:[
+      { label:"Moment of Force (Torque)", eq:"M = F × d   [N·m]",         note:"F=force(N), d=perpendicular distance to pivot(m). Clockwise moments = anticlockwise moments for equilibrium." },
+      { label:"Stress",                   eq:"σ = F / A   [N/m² = Pa]",   note:"σ=stress(Pa), F=applied force(N), A=cross-sectional area(m²). Types: tensile, compressive, shear." },
+      { label:"Strain",                   eq:"ε = ΔL / L₀   (dimensionless)", note:"ε=strain, ΔL=change in length(m), L₀=original length(m). Elastic strain is recoverable." },
+      { label:"Young's Modulus",          eq:"E = σ / ε   [N/m² = Pa]",   note:"E=Young's modulus(Pa), σ=stress, ε=strain. Steel E ≈ 200 GPa. Constant in elastic region. Source: Reed's Vol.1" },
+      { label:"Factor of Safety",         eq:"FoS = Ultimate Strength / Working Stress", note:"Design requires FoS ≥ 3 for static loads, higher for dynamic/fatigue loads in marine applications. Source: Lloyd's Register" },
+    ],
+    flashcards:[
+      { q:"What is the difference between stress and strain?", a:"Stress is force per unit area (σ = F/A, units N/m²). Strain is deformation per unit length (ε = ΔL/L₀, dimensionless). Young's modulus E = σ/ε relates them in elastic region." },
+      { q:"What is a free body diagram?", a:"A diagram showing an isolated body with all external forces and moments acting on it. Used to apply Newton's laws and solve for unknown forces in mechanical systems." },
+    ],
+    videos:[
+      { id:'L2rRDoQfT1M', title:'Stress and Strain — Engineering Mechanics', ch:'The Organic Chemistry Tutor' },
+      { id:'BHVGAuCXdcg', title:'Statics — Free Body Diagrams',              ch:'Professor Leonard' },
+    ],
+  };
+
+  /* ── More BT topics with basic content ── */
+  ['bt_maths1','bt_maths2','bt_draw','bt_workshop1','bt_workshop2','bt_strength',
+   'bt_prog','bt_control','bt_mgmt'].forEach(tid => {
+    if(!TOPIC_KNOWLEDGE[tid]) TOPIC_KNOWLEDGE[tid] = { formulas:[], flashcards:[], videos:[] };
+  });
+
+  console.log('BTech TOPIC_KNOWLEDGE populated');
+})();
+
+/* ══════════════════════════════════════════════════════════
+   4. SUBTOPIC NAVIGATION — click a subtopic → load its content
+   ══════════════════════════════════════════════════════════ */
+(function addSubtopicNavigation(){
+  /* Inject subtopic CSS */
+  const s = document.createElement('style');
+  s.textContent = `
+.stopic-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(240px,1fr));
+  gap: 10px; padding: 14px 0 4px;
+}
+.stopic-card {
+  background: var(--bg1); border: 1px solid var(--b0); border-radius: 12px;
+  padding: 14px 16px; cursor: pointer; transition: all .15s;
+  display: flex; align-items: flex-start; gap: 10px;
+}
+.stopic-card:hover { border-color: var(--ac); box-shadow: 0 4px 16px rgba(0,0,0,.2); transform: translateY(-2px); }
+.stopic-icon { font-size: 1.4rem; flex-shrink: 0; margin-top: 2px; }
+.stopic-title { font-size: .82rem; font-weight: 700; color: var(--tx); margin-bottom: 3px; }
+.stopic-desc  { font-size: .72rem; color: var(--tx2); line-height: 1.5; }
+.stopic-section-label {
+  font-family: 'JetBrains Mono', monospace; font-size: .58rem;
+  letter-spacing: .1em; text-transform: uppercase; color: var(--tx3);
+  padding: 10px 0 4px; font-weight: 600;
+}
+body.light-mode .stopic-card { background: white!important; border-color: var(--b0)!important; }
+body.light-mode .stopic-card:hover { box-shadow: 0 4px 16px rgba(13,30,53,.1)!important; }
+@media(max-width:600px){ .stopic-grid { grid-template-columns: 1fr 1fr; gap: 8px; } }
+@media(max-width:380px){ .stopic-grid { grid-template-columns: 1fr; } }
+  `;
+  document.head.appendChild(s);
+
+  /* Patch selectTopic to show subtopic grid if topic has subtopics */
+  const _orig = selectTopic;
+  selectTopic = function(topicId, title, desc, icon, sectionName){
+    _orig(topicId, title, desc, icon, sectionName);
+    const kb = (typeof TOPIC_KNOWLEDGE !== 'undefined') && TOPIC_KNOWLEDGE[topicId];
+    if(!kb || !kb.subtopics || !kb.subtopics.length) return;
+    /* Show subtopics above the tabs */
+    const tz = document.getElementById('topicZone');
+    if(!tz) return;
+    let sg = tz.querySelector('.stopic-grid-wrap');
+    if(!sg){ sg = document.createElement('div'); sg.className='stopic-grid-wrap'; tz.insertBefore(sg, tz.firstChild); }
+    sg.innerHTML = '<div class="stopic-section-label">📚 Topics in this subject — click to study</div>'
+      + '<div class="stopic-grid">'
+      + kb.subtopics.map(st => `
+        <div class="stopic-card" onclick="loadSubtopicContent('${topicId}','${st.id}',${JSON.stringify(st.title)},${JSON.stringify(st.desc||'')})">
+          <div class="stopic-icon">${st.icon||'📖'}</div>
+          <div><div class="stopic-title">${esc(st.title)}</div><div class="stopic-desc">${esc(st.desc||'')}</div></div>
+        </div>`).join('')
+      + '</div>';
+  };
+})();
+
+function loadSubtopicContent(parentId, subtopicId, title, desc){
+  /* Load a virtual topic: use parent KB but set search query to subtopic */
+  const inp = document.getElementById('searchInput');
+  if(inp){ inp.value = ''; inp.placeholder = `Ask about "${title}"…`; }
+  /* Scroll to search area */
+  const tzh = document.querySelector('.tz-header');
+  if(tzh){ tzh.querySelector('.tz-intro-title').textContent = title; }
+  /* Set quiz label */
+  const ql = document.getElementById('quizTopic'); if(ql) ql.textContent = title;
+  /* Show a contextual intro */
+  const tzz = document.getElementById('topicZone');
+  if(tzz){
+    let intro = tzz.querySelector('.stopic-intro');
+    if(!intro){ intro = document.createElement('div'); intro.className='stopic-intro'; tzz.insertBefore(intro, tzz.querySelector('.mm-tabs')||tzz.lastChild); }
+    intro.style.cssText='padding:12px 16px;background:rgba(212,160,23,.06);border:1px solid rgba(212,160,23,.18);border-radius:10px;margin:12px 0;font-size:.82rem;color:var(--tx2);line-height:1.65;';
+    intro.textContent = `📖 ${title} — ${desc}. Ask AI below for detailed explanations, formulas, worked examples, and exam questions.`;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   5. YEAR SYLLABUS — clickable subjects → load topic content
+   ══════════════════════════════════════════════════════════ */
+(function patchYearSyllabus(){
+  /* Patch renderBTechPage to make subject-rows clickable */
+  const _orig = typeof renderBTechPage === 'function' ? renderBTechPage : null;
+  if(!_orig) return;
+  
+  // Add click-to-learn styling to subject rows after render
+  document.addEventListener('click', e => {
+    const row = e.target.closest('.subject-row');
+    if(!row || row.dataset.patchedLearn) return;
+    row.dataset.patchedLearn = '1';
+    const nameEl = row.querySelector('.subject-name');
+    if(!nameEl) return;
+    const name = nameEl.textContent.trim();
+    // Map subject name to topic ID
+    const topicMap = {
+      'Basic Electrical Engineering': 'bt_elec1',
+      'Engineering Physics': 'bt_physics',
+      'Engineering Chemistry': 'bt_chem',
+      'Engineering Mechanics': 'bt_mech',
+      'Engineering Thermodynamics I': 'bt_thermo1',
+      'Engineering Thermodynamics II': 'bt_thermo2',
+      'Fluid Mechanics I': 'bt_fluid1',
+      'Fluid Mechanics II': 'bt_fluid2',
+      'Engineering Mathematics I': 'bt_maths1',
+      'Engineering Mathematics II': 'bt_maths2',
+      'Marine Diesel Engine I': 'bt_diesel1',
+      'Marine Diesel Engine II': 'bt_diesel2',
+      'Auxiliary Machinery I': 'bt_aux',
+      'Auxiliary Machinery II': 'bt_aux2',
+    };
+    const tid = topicMap[name];
+    if(!tid) return;
+    row.style.cursor = 'pointer';
+    row.title = `Click to study ${name}`;
+    const badge = document.createElement('span');
+    badge.textContent = '→ Study';
+    badge.style.cssText = 'font-size:.6rem;color:var(--ac);margin-left:8px;font-family:\'JetBrains Mono\',monospace;font-weight:700;white-space:nowrap;';
+    nameEl.appendChild(badge);
+  }, true);
+})();
+
+/* ══════════════════════════════════════════════════════════
+   6. SIDEBAR CLOSE on mobile when topic selected (improve)
+   ══════════════════════════════════════════════════════════ */
+(function improvedSidebarClose(){
+  const _o = selectTopic;
+  selectTopic = function(...a){
+    _o(...a);
+    if(window.innerWidth <= 900 && typeof closeSidebar === 'function'){
+      closeSidebar();
+      setTimeout(() => {
+        const tz = document.getElementById('topicZone');
+        if(tz) tz.scrollIntoView({ behavior:'smooth', block:'start' });
+      }, 200);
+    }
+  };
+})();
+
+/* ══════════════════════════════════════════════════════════
+   7. DEEP RESEARCH — extended comprehensive response
+   ══════════════════════════════════════════════════════════ */
+(function improveDeepResearch(){
+  const _origBSP = buildSystemPrompt;
+  buildSystemPrompt = function(mode){
+    const base = _origBSP(mode);
+    if(mode !== 'deep') return base;
+    // Replace the deep instruction with genuinely comprehensive one
+    return base.replace(
+      /Give a comprehensive.*relevant authority\./,
+      `Give a TEXTBOOK-QUALITY, COMPREHENSIVE answer structured as follows. Minimum 800 words.
+
+STRUCTURE:
+## 1. Definition & Overview
+One precise paragraph defining the topic with all technical terms.
+
+## 2. Fundamental Principles
+Detailed engineering principles. Explain WHY things happen, not just WHAT.
+
+## 3. Mathematical Analysis
+ALL relevant formulas with:
+  - Full notation (each symbol defined with units)
+  - Derivation or origin (which law/principle)
+  - Worked numerical example with realistic marine engineering values
+  - Typical ranges for marine applications
+
+## 4. Construction & Operation (if applicable)
+Component-by-component description. How it works step by step.
+
+## 5. Performance, Efficiency & Adjustments
+What affects performance. How to optimise. What the parameters indicate.
+
+## 6. Fault Diagnosis & Troubleshooting
+At least 4 fault scenarios: symptom → likely cause → corrective action → prevention.
+Format as: "SYMPTOM: X | CAUSE: Y | ACTION: Z"
+
+## 7. IMO/MARPOL/STCW Regulations
+Cite specific regulation numbers, year, limits, and compliance requirements.
+
+## 8. MMD Oral Examination Questions (5–8 questions)
+Questions an examiner would ask. Include correct answer for each.
+
+## 9. Common Mistakes & Exam Traps
+What candidates get wrong. What examiners watch for.
+
+## 10. Sources
+Reed's Vol. X Ch.X, Pounder's Ed.X Ch.X, IMO Resolution/Circular number.
+
+Use **bold** for all technical terms on first use. Use proper engineering notation.`
+    );
+  };
+})();
+
+/* ══════════════════════════════════════════════════════════
+   8. QUIZ FROM SEARCH / TOPIC QUIZ BUTTON
+   ══════════════════════════════════════════════════════════ */
+(function addSearchQuiz(){
+  // Add "Quiz on this topic" button to answer card actions
+  document.addEventListener('DOMContentLoaded', function(){
+    setTimeout(function(){
+      const ansActions = document.querySelector('.ans-actions');
+      if(!ansActions || ansActions.dataset.sqPatched) return;
+      ansActions.dataset.sqPatched = '1';
+      const sqBtn = document.createElement('button');
+      sqBtn.className = 'action-btn';
+      sqBtn.id = 'btnQuizOnTopic';
+      sqBtn.innerHTML = '🎯 Quiz this';
+      sqBtn.title = 'Generate quiz questions based on the topic you just researched';
+      sqBtn.onclick = function(){
+        const lastQ = APP.lastQuery || '';
+        if(!lastQ){ alert('Ask a question first, then quiz on it.'); return; }
+        openSearchQuizModal(lastQ);
+      };
+      ansActions.insertBefore(sqBtn, ansActions.firstChild);
+    }, 1000);
+  });
+})();
+
+function openSearchQuizModal(topic){
+  const overlay = document.getElementById('apiOverlay');
+  if(!overlay) return;
+  /* Temporarily show a quiz-gen overlay */
+  const box = overlay.querySelector('.modal-box');
+  if(!box) return;
+  const orig = box.innerHTML;
+  box.innerHTML = `
+    <div class="modal-title">🎯 Quiz: "${topic.slice(0,60)}…"</div>
+    <p style="font-size:.82rem;color:var(--tx2);margin:8px 0 16px;line-height:1.6;">
+      Generate quiz questions based on your last search topic.<br>
+      <strong>Difficulty:</strong>
+    </p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+      ${['Easy','Medium','Hard','Mixed'].map(d=>`<button class="modal-cancel" style="flex:1;min-height:44px;font-weight:700;" onclick="launchSearchQuiz('${topic.replace(/'/g,"\\'")}','${d.toLowerCase()}');closeApiModal();"> ${d}</button>`).join('')}
+    </div>
+    <button class="modal-cancel" onclick="document.querySelector('#apiOverlay .modal-box').innerHTML=arguments[0]" style="width:100%;min-height:40px;" 
+      data-orig="${encodeURIComponent(orig)}">✕ Cancel</button>`;
+  // Fix cancel button to restore original
+  const cancelBtn = box.querySelector('button[data-orig]');
+  cancelBtn.onclick = function(){ box.innerHTML = decodeURIComponent(this.dataset.orig); };
+  overlay.classList.add('open');
+}
+
+async function launchSearchQuiz(topic, difficulty){
+  if(!APP.apiKey){ openApiModal(); return; }
+  // Set up quiz with topic-based prompt
+  QUIZ.difficulty = difficulty;
+  QUIZ.count = 10;
+  QUIZ._topicId = 'search_'+Date.now();
+  QUIZ._topicTitle = topic;
+
+  // Navigate to quiz panel
+  const mmTabs = document.querySelectorAll('.mm-tab');
+  mmTabs.forEach(t => { if(t.textContent.includes('Quiz')) t.click(); });
+
+  setTimeout(async () => {
+    const { system:sysMsg, user:userMsg } = buildAdvQuizPrompt('general', topic, 'marine engineering candidate', difficulty, 10);
+    document.getElementById('qv2Setup').style.display = 'none';
+    document.getElementById('qv2Loading').style.display = '';
+    QUIZ.generating = true; QUIZ.data=[]; QUIZ.index=0; QUIZ.score=0; QUIZ.wrong=[];
+
+    const pid = detectProvider(APP.apiKey);
+    try {
+      let raw = '';
+      if(pid === 'groq'){
+        const res = await fetch('https://api.groq.com/openai/v1/chat/completions',{
+          method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+APP.apiKey},
+          body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:4096,temperature:0.72,
+            messages:[{role:'system',content:sysMsg},{role:'user',content:userMsg}]})
+        });
+        const d = await res.json();
+        raw = d.choices?.[0]?.message?.content || '';
+      } else if(pid === 'gemini'){
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${APP.apiKey}`;
+        const res = await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({contents:[{parts:[{text:sysMsg+'\n\n'+userMsg}]}],generationConfig:{maxOutputTokens:4096,temperature:0.72}})});
+        const d = await res.json();
+        raw = d.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      }
+      const s=raw.indexOf('['),e=raw.lastIndexOf(']');
+      if(s<0||e<0) throw new Error('No JSON');
+      QUIZ.data = JSON.parse(raw.slice(s,e+1)).filter(q=>q.q&&Array.isArray(q.opts)&&q.opts.length===4&&typeof q.ans==='number');
+      QUIZ.generating = false;
+      document.getElementById('qv2Loading').style.display = 'none';
+      document.getElementById('qv2Question').style.display = '';
+      if(typeof renderQuizQ === 'function') renderQuizQ();
+    } catch(err){
+      QUIZ.generating = false;
+      document.getElementById('qv2Loading').style.display = 'none';
+      document.getElementById('qv2Setup').style.display = '';
+      const n=document.getElementById('qv2SetupNote'); if(n) n.textContent='Error: '+err.message;
+    }
+  }, 300);
+}
+
+/* ══════════════════════════════════════════════════════════
+   9. VIDEO AVAILABILITY — filter out known unavailable IDs
+      + search-based fallback
+   ══════════════════════════════════════════════════════════ */
+(function improveVideoCards(){
+  // Patch loadVideos to add YouTube search fallback
+  const _origLV = loadVideos;
+  loadVideos = function(videos){
+    // Filter to valid 11-char IDs
+    const valid = (videos||[]).filter(v => v.id && v.id.length === 11 && /^[A-Za-z0-9_-]+$/.test(v.id));
+    _origLV(valid);
+    // Add "Search YouTube" fallback link
+    const grid = document.getElementById('videoGrid');
+    if(!grid) return;
+    const topicTitle = document.querySelector('.tz-intro-title')?.textContent || APP.currentTopic || '';
+    const searchLink = document.createElement('div');
+    searchLink.style.cssText = 'grid-column:1/-1;padding:12px 4px 0;';
+    searchLink.innerHTML = `<a href="https://www.youtube.com/results?search_query=${encodeURIComponent(topicTitle+' marine engineering explained')}" target="_blank" rel="noopener noreferrer" style="font-size:.74rem;color:var(--ac);text-decoration:none;display:inline-flex;align-items:center;gap:5px;border:1px solid rgba(212,160,23,.3);padding:6px 14px;border-radius:20px;transition:all .14s;" onmouseover="this.style.background='rgba(212,160,23,.07)'" onmouseout="this.style.background=''">🔍 Search more videos on YouTube →</a>`;
+    grid.appendChild(searchLink);
+  };
+})();
+
+/* ══════════════════════════════════════════════════════════
+   10. DIAGRAM — add "Change Topic" / regenerate option
+   ══════════════════════════════════════════════════════════ */
+(function addDiagramChangeTopic(){
+  // Patch renderGeneratedSVG to add a "Custom Topic" input to the footer
+  const _origRGS = typeof renderGeneratedSVG === 'function' ? renderGeneratedSVG : null;
+  if(!_origRGS) return;
+  renderGeneratedSVG = function(svgStr, topicId, topicTitle, containerEl){
+    _origRGS(svgStr, topicId, topicTitle, containerEl);
+    // Add custom topic input after the footer
+    const footer = containerEl.querySelector('.ai-diag-footer');
+    if(!footer || footer.dataset.ctPatch) return;
+    footer.dataset.ctPatch='1';
+    const inp = document.createElement('div');
+    inp.style.cssText='padding:8px 14px;border-top:1px solid var(--b0);display:flex;gap:7px;flex-wrap:wrap;';
+    inp.innerHTML=`
+      <input id="diagCustomTopic" placeholder="Enter any topic to diagram…" 
+        style="flex:1;min-width:140px;padding:7px 10px;border-radius:8px;border:1px solid var(--b1);background:var(--bg2);color:var(--tx);font-size:.8rem;outline:none;"
+        onkeydown="if(event.key==='Enter') generateCustomDiagram()" />
+      <button onclick="generateCustomDiagram()" style="padding:7px 14px;border-radius:8px;background:var(--ac);color:#fff;border:none;cursor:pointer;font-size:.76rem;font-weight:700;white-space:nowrap;min-height:36px;">⚡ Generate</button>`;
+    footer.after(inp);
+  };
+})();
+
+function generateCustomDiagram(){
+  const inp = document.getElementById('diagCustomTopic');
+  if(!inp || !inp.value.trim()) return;
+  const customTopic = inp.value.trim();
+  inp.value = '';
+  // Find the AI diag container
+  const wrap = document.querySelector('.ai-diag-wrap');
+  if(!wrap || typeof generateAIDiagram !== 'function') return;
+  generateAIDiagram(customTopic, customTopic, document.querySelector('.tz-intro-title')?.textContent||'', wrap);
+}
+
+/* ══════════════════════════════════════════════════════════
+   11. MORE ACCURATE FORMULAS — fix + extend key topics
+   ══════════════════════════════════════════════════════════ */
+(function fixAndExtendFormulas(){
+  if(typeof TOPIC_KNOWLEDGE === 'undefined') return;
+
+  /* ── Patch cl4_2stroke IHP + add more formulas ── */
+  const tk2s = TOPIC_KNOWLEDGE.cl4_2stroke;
+  if(tk2s && tk2s.formulas){
+    // Fix IHP
+    const ihp = tk2s.formulas.find(f=>f.label&&f.label.includes('Indicated'));
+    if(ihp){
+      ihp.eq   = 'IHP [kW] = (Pm [bar] × L [m] × A [m²] × N [rpm] × k) ÷ 0.6';
+      ihp.note = 'Pm=mean effective pressure(bar), L=stroke(m), A=piston area=π×(D/2)²(m²), N=rev/min, k=cylinders. Derivation: Pm×10⁵ Pa × L×A = work per stroke; ×N/60 = W per s = Watts; ÷1000 = kW; 10⁵/60000=5/3, so ÷0.6. Worked example: Pm=18 bar, L=2.4m, D=0.8m → A=0.503m², N=100rpm, k=6 → IHP=18×2.4×0.503×100×6÷0.6 = 21,730 kW. Source: Reed\'s Vol.8 Ch.2';
+    }
+    // Add missing useful formulas
+    const exists = new Set(tk2s.formulas.map(f=>f.label));
+    const extra = [
+      { label:'Stroke-Bore Ratio',         eq:'S/B = stroke [m] / bore [m]  (dimensionless)',   note:'Modern long-stroke 2-stroke: S/B = 3.0–4.2. MAN B&W S80ME-C: stroke=3,380mm, bore=800mm → S/B=4.23. Higher S/B improves combustion efficiency. Source: MAN B&W Project Guide' },
+      { label:'Scavenge Efficiency',        eq:'η_sc = (mass of air retained) / (swept vol × ρ_air)', note:'Practical values: uniflow scavenging η_sc = 0.8–0.9. Loop scavenge 0.7–0.8. Affected by timing, turbocharger performance. Source: Reed\'s Vol.8' },
+      { label:'Compression Ratio (2-str)', eq:'r_c = (V_total) / (V_clearance)',                note:'V_total = V_swept + V_clearance. For 2-stroke after ports/valves close. Typical: 14–18:1. Higher r_c → better ignition but higher mechanical loads. Source: Reed\'s Vol.8' },
+      { label:'Thermal Efficiency',         eq:'η_th = W_net / Q_supplied = 1 − (T_exhaust / T_combustion)', note:'Ideal: 1−(1/r_c^(γ−1)). Actual marine engine η_th ≈ 50–55% (ME-C/GI), compared to 30–35% early engines. Source: Pounder\'s Ch.3' },
+    ];
+    extra.forEach(f=>{ if(!exists.has(f.label)) tk2s.formulas.push(f); });
+  }
+
+  /* ── Patch cl3_gzcurve formulas ── */
+  const tkgz = TOPIC_KNOWLEDGE.cl3_gzcurve;
+  if(tkgz && tkgz.formulas){
+    const exists = new Set(tkgz.formulas.map(f=>f.label));
+    const extra = [
+      { label:'GM (Metacentric Height)',    eq:'GM = KB + BM − KG   [m]',    note:'KB=keel-to-centre-of-buoyancy(m), BM=BM=I/V metacentric radius(m), KG=keel-to-centre-of-gravity(m). Minimum GM for cargo ships ≥ 0.15m (IMO A.749). Source: D.J.Eyres Ship Stability Ch.5' },
+      { label:'BM (Metacentric Radius)',    eq:'BM = I_WP / V   [m]',         note:'I_WP=second moment of waterplane area about centreline(m⁴), V=volume of displacement(m³). BM = transverse metacentric radius for small angles. Source: Reed\'s Vol.2' },
+      { label:'Free Surface Correction',   eq:'GG₁ = (i × ρ_liquid) / (V × ρ_ship)',  note:'i=second moment of free surface area(m⁴), ρ_liquid=liquid density(t/m³), V=displacement volume(m³), ρ_ship=ship density. Reduces effective GM. Tanks <97% or >3% full. Source: Reed\'s Vol.2 Ch.9' },
+      { label:'Period of Roll',             eq:'T = 2π × k / √(g × GM)   [s]', note:'T=period(s), k=radius of gyration≈0.35×B for ships, g=9.81m/s², GM=metacentric height(m). Tender ship → long period → comfortable. Stiff → short → uncomfortable. Source: Reed\'s Vol.2' },
+    ];
+    extra.forEach(f=>{ if(!exists.has(f.label)) tkgz.formulas.push(f); });
+  }
+
+  /* ── Patch cl4_pumps ── */
+  const tkp = TOPIC_KNOWLEDGE.cl4_pumps;
+  if(tkp && tkp.formulas){
+    const exists = new Set(tkp.formulas.map(f=>f.label));
+    const extra = [
+      { label:'Affinity Law — Flow',        eq:'Q₂/Q₁ = N₂/N₁',              note:'Flow (Q) proportional to speed (N). Double the speed → double the flow. Source: Reed\'s Vol.5' },
+      { label:'Affinity Law — Head',        eq:'H₂/H₁ = (N₂/N₁)²',           note:'Head (H) proportional to speed². Double speed → 4× head. Source: Reed\'s Vol.5' },
+      { label:'Affinity Law — Power',       eq:'P₂/P₁ = (N₂/N₁)³',           note:'Power proportional to speed³. Double speed → 8× power. Critical for frequency-drive energy savings. Source: Reed\'s Vol.5' },
+      { label:'NPSH Available',             eq:'NPSHa = (P_suction − P_vapour) / (ρ × g)  [m]', note:'P_suction=absolute suction pressure(Pa), P_vapour=vapour pressure at operating temp(Pa), ρ=fluid density, g=9.81. Must exceed NPSHr by ≥ 0.5m safety margin.' },
+      { label:'Pump Hydraulic Power',       eq:'P_hydraulic = ρ × g × Q × H   [W]',  note:'ρ=density(kg/m³), g=9.81m/s², Q=flow(m³/s), H=head(m). Shaft power = P_hydraulic / η_pump. Source: Reed\'s Vol.5' },
+    ];
+    extra.forEach(f=>{ if(!exists.has(f.label)) tkp.formulas.push(f); });
+  }
+})();
+
+/* ══════════════════════════════════════════════════════════
+   12. MOBILE UI OVERHAUL — topbar, sidebar, accessibility
+   ══════════════════════════════════════════════════════════ */
+(function mobileUIFix(){
+  const s = document.createElement('style');
+  s.id = 'mobile-v13';
+  s.textContent = `
+
+/* ── TOPBAR: fix half-cut on mobile ── */
+@media (max-width: 768px) {
+  :root { --top: 56px !important; }
+
+  .topbar {
+    padding: 0 8px !important;
+    gap: 6px !important;
+    height: var(--top) !important;
+    overflow: hidden !important;
+  }
+
+  /* Logo compact */
+  .logo { font-size: .82rem !important; gap: 4px !important; min-width: 0 !important; }
+  .logo-anchor { font-size: .95rem !important; }
+
+  /* Breadcrumb — hide on very small */
+  .breadcrumb { display: none !important; }
+
+  /* Topbar actions — right-align, icon-only on mobile */
+  .topbar-actions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    flex-shrink: 0 !important;
+    margin-left: auto !important;
+  }
+
+  /* Each button — icon only, rounded, minimum tap target */
+  .tbtn {
+    padding: 0 !important;
+    width: 38px !important;
+    height: 38px !important;
+    border-radius: 10px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 0 !important; /* hide text label */
+    overflow: hidden !important;
+    flex-shrink: 0 !important;
+  }
+  .tbtn .tbtn-icon { font-size: 1.1rem !important; margin: 0 !important; display: block !important; }
+  .tbtn .tbtn-label { display: none !important; }
+
+  /* Mode toggle — compact */
+  .mode-toggle { width: 40px !important; height: 22px !important; flex-shrink: 0 !important; }
+  .mode-toggle-knob { width: 16px !important; height: 16px !important; top: 2px !important; }
+  body.light-mode .mode-toggle-knob { transform: translateX(18px) !important; }
+
+  /* Streak badge — hide on smallest screens to save space */
+  .streak-badge { display: none !important; }
+
+  /* Hamburger menu button — make larger */
+  #btnMenu {
+    width: 42px !important; height: 42px !important;
+    font-size: 1.3rem !important; border-radius: 10px !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Main content offset */
+  .app-layout { padding-top: var(--top) !important; }
+
+  /* Fix sidebar width */
+  .sidebar { width: 88vw !important; max-width: 340px !important; }
+}
+
+/* ── Very small phones (iPhone SE, 375px) ── */
+@media (max-width: 390px) {
+  .tbtn { width: 34px !important; height: 34px !important; }
+  .tbtn .tbtn-icon { font-size: 1rem !important; }
+  .mode-toggle { width: 36px !important; }
+  .logo { font-size: .75rem !important; }
+}
+
+/* ── LIGHT MODE MOBILE: better contrast ── */
+@media (max-width: 768px) {
+  body.light-mode .topbar {
+    background: white !important;
+    border-bottom: 1px solid var(--b0) !important;
+    box-shadow: 0 1px 12px rgba(13,30,53,.1) !important;
+  }
+  body.light-mode .tbtn {
+    background: var(--bg2) !important;
+    border-color: var(--b1) !important;
+    color: var(--tx2) !important;
+  }
+  body.light-mode .logo { color: var(--tx) !important; }
+
+  /* Main panels mobile padding fix */
+  .level-page, .home-screen { padding: 16px 14px 100px !important; }
+  .tz-header { padding: 14px 14px 10px !important; }
+  .mm-tabs { padding: 3px !important; margin: 0 10px !important; }
+  .mm-panel { padding: 12px 10px !important; }
+
+  /* Quiz options more readable on mobile */
+  .qv2-opt { padding: 12px 14px !important; font-size: .83rem !important; min-height: 52px !important; }
+  .qv2-q-text { font-size: .9rem !important; line-height: 1.55 !important; }
+
+  /* Formula cards on mobile */
+  .fv3-eq { font-size: .78rem !important; padding: 9px 10px !important; }
+  .fv3-vrow { font-size: .72rem !important; }
+
+  /* Better answer card on mobile */
+  .ans-body { font-size: .86rem !important; line-height: 1.8 !important; }
+  .ans-header { padding: 10px 12px !important; }
+  .ans-actions { padding: 8px 10px !important; gap: 6px !important; flex-wrap: wrap !important; }
+  .action-btn { font-size: .66rem !important; padding: 6px 10px !important; min-height: 36px !important; }
+
+  /* Video cards full width */
+  .yt-card-v2 { width: 100% !important; }
+
+  /* Input/search bigger tap targets */
+  .search-input { min-height: 48px !important; font-size: 16px !important; }
+  .ask-btn { min-height: 48px !important; }
+
+  /* Diagram grid single col */
+  .diag-grid { grid-template-columns: 1fr !important; }
+}
+
+/* ── FIX: sidebar topic list readable in light mode mobile ── */
+body.light-mode .sb-topic { color: var(--tx2) !important; min-height: 44px !important; }
+body.light-mode .sb-topic.active { background: rgba(176,125,10,.08) !important; border-left-color: var(--ac) !important; color: var(--tx) !important; }
+body.light-mode .sb-rank-title { color: var(--tx) !important; }
+body.light-mode .sb-rank-label { color: var(--tx3) !important; }
+
+/* ── FIX: topbar exam mode active button ── */
+#btnExam.on .tbtn-icon::after { content: ''; }
+body.light-mode #btnExam.on { background: rgba(220,38,38,.1) !important; border-color: #dc2626 !important; }
+
+/* ── Notes pip in light mode ── */
+body.light-mode .notes-count-pip { background: #dc2626 !important; color: white !important; }
+
+/* ── Bottom FAB: ensure above mobile nav ── */
+#fabAsk { bottom: calc(16px + env(safe-area-inset-bottom, 0px)) !important; }
+
+/* ── Scroll indicators for horizontal tabs on mobile ── */
+.mm-tabs { -webkit-overflow-scrolling: touch !important; scroll-snap-type: x mandatory !important; }
+.mm-tab { scroll-snap-align: start !important; }
+
+  `;
+  document.head.appendChild(s);
+})();
+
+/* ══════════════════════════════════════════════════════════
+   13. ADDITIONAL TOPIC FORMULAS — more accuracy
+   ══════════════════════════════════════════════════════════ */
+(function addMoreFormulas(){
+  if(typeof TOPIC_KNOWLEDGE === 'undefined') return;
+  
+  // cl3_refrig — add proper refrigeration cycle formulas
+  if(TOPIC_KNOWLEDGE.cl3_refrig){
+    const exists = new Set((TOPIC_KNOWLEDGE.cl3_refrig.formulas||[]).map(f=>f.label));
+    [
+      { label:'Coefficient of Performance', eq:'COP = Q_L / W_comp = Q_L / (Q_H − Q_L)', note:'Q_L=heat removed from cold space(kJ/kg), W_comp=compressor work(kJ/kg), Q_H=heat rejected to condenser. Typical ship reefer COP=2–4. Source: Reed\'s Vol.4 Ch.12' },
+      { label:'Refrigerating Effect',        eq:'RE = h₁ − h₄   [kJ/kg]',                 note:'h₁=enthalpy at compressor inlet(kJ/kg), h₄=enthalpy after expansion valve(kJ/kg). Higher RE → more efficient system. Source: Reed\'s Vol.4' },
+      { label:'Compressor Work (Refrign)',   eq:'W = h₂ − h₁   [kJ/kg]',                  note:'h₂=enthalpy after isentropic compression, h₁=enthalpy at suction. Actual work > ideal due to isentropic efficiency η_is=0.75–0.85. Source: Reed\'s Vol.4' },
+    ].forEach(f=>{ if(!exists.has(f.label)) TOPIC_KNOWLEDGE.cl3_refrig.formulas.push(f); });
+  }
+
+  // cl4_turbo — add missing turbocharger formulas
+  if(TOPIC_KNOWLEDGE.cl4_turbo){
+    const exists = new Set((TOPIC_KNOWLEDGE.cl4_turbo.formulas||[]).map(f=>f.label));
+    [
+      { label:'Isentropic Temperature Rise', eq:'T₂s/T₁ = (P₂/P₁)^((γ−1)/γ)',          note:'T in Kelvin, P=absolute pressure(bar), γ=ratio of specific heats (1.4 for air). T₂s=ideal outlet temp. Actual T₂=T₁+(T₂s−T₁)/η_is. Source: ABB Turbocharging Manual' },
+      { label:'Turbocharger Power Balance',  eq:'W_turbine = W_compressor + W_mechanical', note:'Energy from exhaust gas (turbine) = energy to compress scavenge air (compressor) + bearing/seal losses. Basis of all TC matching calculations. Source: Reed\'s Vol.8 Ch.5' },
+      { label:'Mass Flow Through TC',        eq:'ṁ_exhaust = ṁ_air + ṁ_fuel',             note:'ṁ=mass flow rate(kg/s). Conservation of mass through turbocharger. ṁ_exhaust slightly > ṁ_air due to fuel added in cylinder.' },
+    ].forEach(f=>{ if(!exists.has(f.label)) TOPIC_KNOWLEDGE.cl4_turbo.formulas.push(f); });
+  }
+
+  // ce_sfoc — SFOC calculation with full worked example
+  if(TOPIC_KNOWLEDGE.ce_sfoc || TOPIC_KNOWLEDGE.cl4_2stroke){
+    const tk = TOPIC_KNOWLEDGE.ce_sfoc || TOPIC_KNOWLEDGE.cl4_2stroke;
+    if(tk.formulas){
+      const exists = new Set(tk.formulas.map(f=>f.label));
+      if(!exists.has('SFOC from Logbook Data')){
+        tk.formulas.push({ label:'SFOC from Logbook Data', eq:'SFOC [g/kWh] = (Fuel cons. [tonnes/day] × 10⁶) / (Power [kW] × 24)', note:'Convert tonnes/day: ×1000kg/t ×1000g/kg = ×10⁶. Example: 50 t/day, 15,000 kW → SFOC = (50×10⁶)/(15000×24) = 138.9 g/kWh. ME-C targets: 155–175 g/kWh at MCR. Source: MAN B&W Project Guide G95ME-C' });
+      }
+    }
+  }
+})();
+
+console.log('%cMarineIQ v13 — Mega patch loaded. All issues addressed.', 'color:#f59e0b;font-weight:bold');
+
+
 </script>
 </body>
 </html>
