@@ -8048,6 +8048,1210 @@ doAsk = async function() {
 console.log('%cMarineIQ UX Fix — auto-ask removed, intro cards active', 'color:#34d399');
 
 
+
+
+/* ══ AI DIAGRAM GENERATOR ══ */
+/* ═══════════════════════════════════════════════════════════════════════
+   AI DIAGRAM GENERATOR
+   • Generates SVG diagrams on demand via AI (Groq / Gemini)
+   • Dark-themed, animated, technically accurate
+   • Cached in sessionStorage — never regenerates same topic twice
+   • Renders inline in the existing diagrams panel
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ══════════════════════════════════════════════════════════
+   1. SYSTEM PROMPT — precision SVG engineering diagrams
+   ══════════════════════════════════════════════════════════ */
+const SVG_SYSTEM_PROMPT = `You are a technical SVG diagram generator for marine engineering education.
+Generate a SINGLE valid SVG diagram of the requested system.
+
+OUTPUT RULES — CRITICAL:
+- Output ONLY the SVG element. No explanation. No markdown. No backticks. No preamble.
+- First character must be < and last character must be >
+- Start: <svg viewBox="0 0 520 340" xmlns="http://www.w3.org/2000/svg" style="background:#030b14;font-family:monospace;display:block;width:100%">
+- End: </svg>
+- Include a <style> tag inside SVG for @keyframes animations
+- NO external URLs. NO JavaScript. NO <script> tags. ONLY inline SVG+CSS.
+
+VISUAL STYLE:
+- Background: #030b14
+- Component boxes: fill="#091629" stroke="#1a3550" rx="4"
+- Primary flow lines (liquid): stroke="#60a5fa" stroke-width="2" fill="none"  
+- Hot/exhaust lines: stroke="#f97316" stroke-width="2" fill="none"
+- Cooling water lines: stroke="#38bdf8" stroke-width="2" fill="none"
+- Steam/gas lines: stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="5,3" fill="none"
+- Electrical connections: stroke="#facc15" stroke-width="1.5" fill="none"
+- Gold highlight/accent: #d4a017
+- Title bar: rect fill="#0d2038" with text fill="#e8f4ff"
+- Section labels: fill="#d4a017" font-size="8" font-weight="bold"
+- Value annotations: fill="#e8f4ff" font-size="9"
+- Component labels: fill="#8ab4d4" font-size="9"
+
+REQUIRED ELEMENTS:
+1. Title bar at top (y=0 to y=22): system name + key spec values
+2. Arrow markers: define <marker id="arr"> for flow direction arrows
+3. At least ONE CSS animation: flow pulse, rotation, or blink
+4. Label EVERY component and flow line
+5. Show actual technical values (pressures, temps, speeds, specs)
+6. Max 70 SVG elements total — clean and readable
+
+ANIMATION TEMPLATE (copy this into your <style>):
+@keyframes flowPulse{0%{stroke-dashoffset:20}100%{stroke-dashoffset:0}}
+@keyframes spin{from{transform-origin:50% 50%;transform:rotate(0deg)}to{transform-origin:50% 50%;transform:rotate(360deg)}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+.flow{animation:flowPulse 1.5s linear infinite;stroke-dasharray:8,4}
+.spin{animation:spin 3s linear infinite}
+.blink{animation:blink 2s ease infinite}
+
+ACCURACY: Use real marine engineering values from Reed's/MAN B&W/IMO standards.`;
+
+/* ══════════════════════════════════════════════════════════
+   2. TOPIC → DIAGRAM DESCRIPTION MAPPING
+   What to draw for each topic category
+   ══════════════════════════════════════════════════════════ */
+const DIAGRAM_PROMPTS = {
+  // 2-stroke engine
+  cl4_2stroke:    'MAN B&W 2-stroke slow-speed diesel engine cross-section: cylinder liner, piston, crosshead, connecting rod, crankshaft, exhaust valve, scavenge ports, turbocharger connection. Label: Pmax 150-180 bar, TDC, BDC, stroke, bore.',
+  cl4_4stroke:    'Wärtsilä 4-stroke medium-speed diesel engine cross-section: cylinder head with inlet/exhaust valves, piston, connecting rod, crankshaft, camshaft, push rod, rocker arm. Label valve overlap 20-30°CA, compression ratio 14-17:1.',
+  cl4_turbo:      'Exhaust gas turbocharger system: turbine side (hot exhaust gas in, gas out), compressor side (air in, charged air to intercooler), floating ring bearings, oil supply/drain. Label: boost pressure 2.0-4.5 bar, turbine speed 8000-30000 RPM, exhaust temperature 350-400°C.',
+  cl4_indicator:  'Diesel engine indicator diagram (P-V diagram): compression curve, fuel injection point, maximum pressure (Pmax), expansion curve, exhaust valve opening (EVO), scavenge port opening (SPO). Label MEP area, Pmax ~150 bar, compression ratio.',
+  cl4_fuelsys:    'HFO fuel oil system: double-bottom storage tank → transfer pump → settling tank → purifier → day tank → booster pump → heater (135-150°C) → viscotherm → ME fuel injection. Label pressures and temperatures.',
+  cl4_lubesys:    'Main engine lubrication system: sump → main lube pump → cooler → fine filter → main bearings → crosshead (separate) → cylinder lubricator → drain back. Label pressures: 4-5 bar main, 0.6-0.8 bar cylinder lube.',
+  cl4_pumps:      'Centrifugal pump cross-section: impeller, volute casing, suction eye, discharge, shaft seal, bearing housing. Show flow direction with velocity triangles. Label: impeller diameter, RPM, head (H), flow (Q), NPSH.',
+  cl4_purifier:   'Alfa Laval disc centrifuge purifier: feed inlet → distributor → disc stack → clean oil outlet → sludge ejection → bowl → gravity disc. Label: bowl speed 7000 RPM, HFO temperature 95-98°C, gravity disc selection.',
+  cl4_heatex:     'Plate heat exchanger (PHE): alternating hot/cold flow channels through corrugated plates, inlet/outlet ports, carrying frame, tightening bolts. Show counter-flow arrangement. Label LMTD, fouling resistance, pressure drop.',
+  cl4_fwg:        'Flash-type fresh water generator: jacket water inlet (88°C) → shell side → evaporator → demister → condenser → freshwater pump → salinometer (10ppm limit) → storage. Label vacuum 0.9 bar, evaporation temperature 40-45°C.',
+  cl4_aircomp:    '2-stage air compressor: L.P. cylinder → intercooler → H.P. cylinder → aftercooler → moisture separator → starting air vessel 30 bar. Label safety valve, fusible plug 121°C, non-return valve, relief valve.',
+  cl4_ows:        'Oily water separator (15ppm): bilge water inlet → gravity separator → coalescer plates → polishing unit → 15ppm OCM sensor → overboard/bilge tank. Label: MARPOL Annex I, ORB Part I entry, special area 0ppm.',
+  cl4_thermo:     'Diesel cycle P-V diagram and corresponding T-s diagram side by side: processes 1-2 (isentropic compression), 2-3 (constant pressure heat addition), 3-4 (isentropic expansion), 4-1 (constant volume heat rejection). Label efficiency formula η=1-(1/r^(γ-1)).',
+  cl4_bernoulli:  'Venturi meter flow measurement: inlet section (D1, V1, P1) → throat (D2, V2, P2) → recovery section. Show pressure tappings and manometer. Label Bernoulli equation, continuity equation, Cd=0.97.',
+  cl4_generators: 'Ship AC generator (alternator): stator windings, rotor field winding, slip rings, brushes, exciter, automatic voltage regulator (AVR), governor. Label: 440V 3-phase 60Hz, power factor 0.8.',
+  cl4_motors:     '3-phase induction motor: stator, rotor (squirrel cage), air gap, terminal box, star-delta starter connections. Label Ns=120f/P, slip, torque-speed curve.',
+  cl4_protection: 'Electrical protection relay scheme: generator → bus bar → overcurrent relay (50/51) → earth fault relay (64) → preferential trip → preferential load shedding sequence. Label current transformer (CT), voltage transformer (VT).',
+  cl4_watch:      'Engine room watch arrangement: UMS alarm panel → duty engineer cabin → bridge telegraph → ME control console → local control stand → bilge alarm → fire detection loop.',
+  // Class II/III topics
+  cl3_transverse:  'Ship transverse stability diagram: waterline, centre of buoyancy (B), centre of gravity (G), metacentre (M), metacentric height GM, righting lever GZ. Show heeled ship at 15° with all points labeled. Label: GZ=GM×sinθ, stability criteria.',
+  cl3_gzcurve:     'GZ righting lever curve: x-axis heel angle 0-90°, y-axis GZ (metres). Show: initial slope=GM, maximum GZ (min 0.20m at ≥30°), angle of maximum GZ, angle of vanishing stability (AVS). Shade dynamical stability areas. Label IMO A.749(18) criteria.',
+  cl3_freesurface: 'Free surface effect diagram: tank with partial fill showing liquid surface shifting when ship heels. Vector diagram showing G moving to G1, virtual GM reduction. Label: GGm = ρ×i/(Δ), i = breadth³×length/12.',
+  cl3_trim:        'Ship trim calculation diagram: LBP, LCF position, added weight moment, trim formula. Side view showing trimming lever, BML, change in trim. Label: trim = moment/MCT, MCT = GML×Δ/(100×L).',
+  cl3_damage:      'Damage stability: intact waterplane vs damaged waterplane, lost buoyancy method, floodable length curves. Show flooding through damage opening, heeling to equilibrium. Label SOLAS subdivision requirements.',
+  cl3_resistance:  'Ship resistance components: hull moving through water showing frictional resistance (skin friction), wave making resistance, viscous pressure resistance. Speed-resistance curve with humps. Label total resistance RT = RF + RW + RAir.',
+  cl3_refrig:      'Marine refrigeration vapour compression cycle: P-h diagram (Mollier) showing: 1-2 compression, 2-3 condensation, 3-4 expansion, 4-1 evaporation. Label: COP = RE/W_comp, superheat 5-10°C, subcooling 3-5°C.',
+  cl3_refrigsys:   'Ship refrigeration plant circuit: compressor → condenser (seawater cooled) → receiver → expansion valve → evaporator (cargo hold coils) → back to compressor. Label pressures: suction 1-3 bar, discharge 8-15 bar, refrigerant R-404A.',
+  cl3_boilers:     'Scotch marine boiler cross-section: furnace, fire tubes, steam space, water space, safety valves ×2, gauge glass, feed water inlet, blowdown valve, mountings. Label: working pressure 7-17 bar, temperature 180-210°C.',
+  cl3_boilerwater: 'Boiler water treatment system: feed water → deaerator → dosing pump → economiser → boiler drum. Chemical treatment points: oxygen scavenger, phosphate, pH adjustment. Label: pH 10.5-11.5, TDS <3500ppm, hardness nil.',
+  cl3_steamplant:  'Steam Rankine cycle: boiler → superheater → HP turbine → LP turbine → condenser → condensate pump → feed heater → deaerator → feed pump → back to boiler. Label T-s diagram beside it.',
+  cl3_perf:        'Main engine performance monitoring: specific fuel oil consumption (SFOC) curve vs load %, power curve, Pmax vs load, exhaust temperatures per cylinder, turbocharger speed. Label SFOC 155-175 g/kWh at MCR.',
+  cl3_governor:    'Mechanical-hydraulic governor (Woodward type): speed sensor flyweights → pilot valve → servo motor → fuel rack. Show feedback linkage. Label: droop 3-5%, isochronous mode, hunting.',
+  cl3_propeller:   'Fixed pitch propeller (FPP): blade face, blade back, leading edge, trailing edge, boss/hub, pitch angle, rake, skew. Show advance velocity (VA), rotational velocity (2πnr), resultant. Label J=VA/(nD), KT, η_prop.',
+  cl3_vibration:   'Engine torsional vibration system: crankshaft as multi-mass system, natural frequency calculation, barred speed range. Show vibration amplitude vs RPM curve with resonance peak. Label critical speed, barred range.',
+  cl3_altfuels:    'Alternative marine fuels comparison: side-by-side energy density bars (HFO vs LNG vs Methanol vs Ammonia vs H2), CO2 emission factors, storage requirements (cryogenic tank for LNG at -163°C). Label IMO 2030/2050 targets.',
+  cl3_pms:         'Planned maintenance system (PMS) cycle: Running hours counter → maintenance due → work order → execution → parts used → history → interval reset. Show integration with class society survey intervals.',
+  cl3_ndt:         'NDT methods comparison: UT (ultrasonic) probe on plate with flaw echo, MPI (magnetic particle) with cracks revealed, DPI (dye penetrant) with penetrant and developer steps, radiography X-ray setup. Label applications per method.',
+  cl3_materials:   'Material selection for marine environment: corrosion rate chart (mm/year) for: mild steel, stainless 316L, copper-nickel 90/10, aluminium bronze, titanium in seawater. Label galvanic series, cathodic protection.',
+  cl3_bearings:    'Main engine bearing types: white metal (Babbitt) thin shell main bearing cross-section with oil film, oil groove, clearance. Label: oil film pressure distribution, min oil film thickness 5-25μm, bearing load.',
+  cl3_solas:       'SOLAS fire protection zones: ship side-view showing A-class divisions (60-min fire rating), B-class (30-min), fire detection zones, CO2 room, fire pump connections, escape routes.',
+  cl3_marpol:      'MARPOL Annex I oily water system: bilge well → bilge pump → OWS (15ppm) → overboard in open sea. Special area prohibition shown. ORB Part I entries. Label: OCM sensor, 3NM from land limit.',
+  cl3_annex6:      'MARPOL Annex VI compliance: SOx emissions (0.5% global, 0.1% ECA) with VLSFO vs HFO comparison, NOx Tier I/II/III limits vs RPM curve, scrubber (EGC) open/closed loop diagram. Label IMO 2020.',
+  cl3_ism:         'ISM Code structure: Company (SMS, DPA) → Master (authority, responsibility) → Shore → Ship. 12 elements shown as linked boxes. Audit cycle: internal audit → company audit → flag state verification.',
+  cl3_stcw:        'STCW watch schedule: 24-hour circle showing: maximum work 14h/24h, minimum rest 10h/24h, minimum rest 77h/7 days. Two-split rest periods shown. Label: BAC ≤0.05%, Manila 2010 amendment.',
+  cl3_bwm:         'Ballast water management system: ballast intake → BWM treatment unit (UV or electrolysis) → ballast tanks → discharge treatment → overboard. Label D-2 standard: <10 organisms/m³ >50μm.',
+  // Chief engineer
+  ce_cii:          'CII (Carbon Intensity Indicator) rating system: ship annual CO2 emissions / (Capacity × Distance) = attained CII vs required CII. Rating bands A-E shown as color spectrum. EEXI, SEEMP Part III links. Label formula and year-on-year tightening.',
+  ce_seemp:        'SEEMP Part III CII management cycle: measure annual CII → compare to required → A/B/C/D/E rating → if D(3yr) or E(1yr) → corrective action plan → EEXI for existing ships. Show continuous improvement loop.',
+  ce_sfoc:         'Specific fuel oil consumption (SFOC) optimization map: SFOC contour curves on power (kW) vs RPM chart. Show optimal SFOC region, slow steaming zone, engine load limits. Label g/kWh values 160-210.',
+  ce_futurefuels:  'Future marine fuels energy pathway: Well-to-Wake CO2 comparison for HFO, LNG (grey/green), Methanol (grey/green), Ammonia (green), Hydrogen (green). Storage density comparison. Label 2030/2050 IMO targets.',
+  ce_diagnosis:    'Engine fault diagnosis flowchart: symptom (high exhaust temp) → check (T/C fouling? Fuel timing? Scavenge air?) → test (indicator card, exhaust analysis) → corrective action. Systematic fishbone diagram.',
+  ce_failures:     'Main engine failure modes: bearing failure (low oil pressure), piston seizure (overheating), crankshaft deflection (misalignment), liner wear (cavitation). Show cross-section with failure point highlighted.',
+  ce_overhaul:     'Piston/liner/bearing overhaul sequence: plan → permit to work → cool down (8-12hr) → open crankcase → measure before (clearances, diameters) → remove → inspect/renew → reassemble → pressure test → trial run.',
+  ce_casualty:     'Marine casualty investigation flowchart: incident → preserve evidence → notify → ISM non-conformance → root cause analysis (5-Why, Fishbone) → corrective action → MAIB/flag state report → lessons learned.',
+  ce_psc:          'Port State Control inspection flow: arrival → PSC officer boards → document check (ISM, STCW, MARPOL certificates) → ship inspection → deficiency found → rectify or detain. Label common deficiency areas.',
+  // BTech topics
+  bt_diesel1:      '2-stroke vs 4-stroke working cycle comparison: two side-by-side diagrams. Left: 2-stroke showing scavenge/power in 360°. Right: 4-stroke showing 4 strokes over 720°. P-V diagrams below each. Label IHP formulas.',
+  bt_thermo1:      'Thermodynamic cycles comparison: Carnot cycle (ideal), Otto cycle (petrol), Diesel cycle (marine diesel) on single T-s diagram. Label: η_Carnot=1-TL/TH, diesel efficiency formula, steam Rankine cycle overlay.',
+  bt_fluid1:       'Venturi + orifice + pitot tube flow measurement: three instruments side by side. Each shows flow streamlines, pressure tappings, velocity profile. Label Bernoulli equation application to each.',
+  bt_elec2:        '3-phase AC generator (alternator): delta vs star winding comparison, phasor diagram (VR, VY, VB at 120°), power formula P=√3×VL×IL×cosφ. Ship generator: 440V, 60Hz, 4-pole, 1800RPM.',
+  bt_naval1:       'Ship hull cross-section with naval architecture terms: beam (B), draught (T), freeboard, waterplane, centre of buoyancy (B), metacentre (M), GM. Side view showing LBP, LWL, displacement volume. Label Cb formula.',
+  bt_naval2:       'Ship stability — same as transverse stability diagram but showing: G above M (unstable), G below M (stable), angle of loll (G=M), free surface effect reducing GM. IMO A.749 criteria table.',
+  bt_control:      'PID control loop for marine governor: setpoint (desired RPM) → error signal → PID controller (Kp, Ki, Kd blocks) → actuator (fuel rack) → engine (plant) → speed sensor → feedback → compare. Label transfer function G(s).',
+  bt_strength:     'Shaft torsion and bending: propeller shaft as beam showing: weight of propeller (bending), torque from propeller (torsion), thrust. Bending moment diagram, shear force diagram, combined stress Mohr\'s circle.',
+  bt_mep:          'MARPOL compliance overview: 6 Annexes shown as icons with key limits: I(15ppm), II(NLS), III(packaged), IV(sewage 3nm), V(plastics ban), VI(SOx 0.5%, NOx Tier III). ISM Code 12 elements beside it.',
+  bt_env:          'Ship decarbonisation roadmap: 2020(IMO 2020 SOx), 2023(EEXI/CII), 2030(target), 2050(net zero). Bar chart showing CO2 reduction per fuel type. LNG, methanol, ammonia, hydrogen icons with readiness levels.',
+};
+
+/* ── Default prompt for topics not in the map ── */
+function getDiagramPrompt(topicId, topicTitle, levelTitle) {
+  if (DIAGRAM_PROMPTS[topicId]) return DIAGRAM_PROMPTS[topicId];
+  // Generic prompt based on topic title
+  return `Technical marine engineering diagram of: "${topicTitle}" for ${levelTitle} level.
+Show the main components, connections, and flow paths. Label all parts with real engineering values and specifications. This is for MMD examination study.`;
+}
+
+/* ══════════════════════════════════════════════════════════
+   3. SVG GENERATION VIA AI API
+   ══════════════════════════════════════════════════════════ */
+const SVG_CACHE = {}; // sessionStorage-backed cache
+
+function svgCacheKey(topicId) { return `miq_svg_${topicId}`; }
+
+function getSVGFromCache(topicId) {
+  if (SVG_CACHE[topicId]) return SVG_CACHE[topicId];
+  try {
+    const stored = sessionStorage.getItem(svgCacheKey(topicId));
+    if (stored) { SVG_CACHE[topicId] = stored; return stored; }
+  } catch(e) {}
+  return null;
+}
+
+function saveSVGToCache(topicId, svg) {
+  SVG_CACHE[topicId] = svg;
+  try { sessionStorage.setItem(svgCacheKey(topicId), svg); } catch(e) {}
+}
+
+function sanitizeSVG(raw) {
+  // Extract just the SVG element — remove anything before/after
+  raw = raw.trim();
+  // Strip markdown fences
+  raw = raw.replace(/^```(?:svg|xml)?\s*/i, '').replace(/\s*```$/i, '');
+  raw = raw.trim();
+  // Find SVG start and end
+  const svgStart = raw.indexOf('<svg');
+  const svgEnd   = raw.lastIndexOf('</svg>');
+  if (svgStart === -1 || svgEnd === -1) return null;
+  let svg = raw.slice(svgStart, svgEnd + 6);
+  // Remove any <script> tags for safety
+  svg = svg.replace(/<script[\s\S]*?<\/script>/gi, '');
+  // Remove any external URL references (security)
+  svg = svg.replace(/xlink:href\s*=\s*["']https?:[^"']+["']/gi, '');
+  svg = svg.replace(/href\s*=\s*["']https?:[^"']+["']/gi, '');
+  // Ensure viewBox is present
+  if (!svg.includes('viewBox')) {
+    svg = svg.replace('<svg', '<svg viewBox="0 0 520 340"');
+  }
+  // Ensure width 100%
+  if (!svg.includes('width="100%')) {
+    svg = svg.replace(/width="[^"]*"/, 'width="100%"');
+  }
+  return svg;
+}
+
+async function generateAIDiagram(topicId, topicTitle, levelTitle, containerEl) {
+  if (!APP.apiKey) {
+    containerEl.innerHTML = `<div class="ai-diag-placeholder">
+      <div class="adp-icon">🔑</div>
+      <div class="adp-text">Set up your API key to generate AI diagrams</div>
+      <button class="adp-btn" onclick="openApiModal()">Add API Key</button>
+    </div>`;
+    return;
+  }
+
+  // Show loading state
+  containerEl.innerHTML = `<div class="ai-diag-generating">
+    <div class="adg-spinner"></div>
+    <div class="adg-label">Generating diagram for <strong>${esc(topicTitle)}</strong>…</div>
+    <div class="adg-sub">AI is drawing the technical schematic</div>
+  </div>`;
+
+  const prompt = getDiagramPrompt(topicId, topicTitle, levelTitle);
+  const pid    = detectProvider(APP.apiKey);
+
+  try {
+    let rawSVG = '';
+
+    if (pid === 'groq') {
+      // Groq: non-streaming for SVG (easier to parse complete output)
+      const models = ['llama-3.3-70b-versatile', 'llama3-70b-8192'];
+      let success = false;
+      for (const model of models) {
+        try {
+          const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${APP.apiKey}` },
+            body: JSON.stringify({
+              model, stream: false, temperature: 0.3, max_tokens: 3000,
+              messages: [
+                { role: 'system', content: SVG_SYSTEM_PROMPT },
+                { role: 'user',   content: prompt }
+              ]
+            })
+          });
+          const data = await res.json();
+          if (!res.ok) { const msg=data.error?.message||`HTTP ${res.status}`; if(res.status===429) continue; throw new Error(msg); }
+          rawSVG  = data.choices?.[0]?.message?.content || '';
+          success = true;
+          break;
+        } catch(e) { if(!e.message.includes('429')) throw e; }
+      }
+      if (!success) throw new Error('Groq rate limit — try again in a moment');
+
+    } else if (pid === 'gemini') {
+      const models = ['gemini-1.5-flash', 'gemini-1.5-flash-8b'];
+      let success = false;
+      for (const model of models) {
+        try {
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${APP.apiKey}`;
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ role: 'user', parts: [{ text: SVG_SYSTEM_PROMPT + '\n\nDraw: ' + prompt }] }],
+              generationConfig: { maxOutputTokens: 3000, temperature: 0.3 }
+            })
+          });
+          const data = await res.json();
+          if (!res.ok) { const msg=data.error?.message||`HTTP ${res.status}`; if(msg.includes('quota')) continue; throw new Error(msg); }
+          rawSVG  = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+          success = true;
+          break;
+        } catch(e) { if(e.message.includes('quota')) continue; throw e; }
+      }
+      if (!success) throw new Error('Gemini quota exceeded — switch to Groq');
+
+    } else if (pid === 'openrouter') {
+      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json','Authorization':`Bearer ${APP.apiKey}`,'HTTP-Referer':'https://marineiq.study' },
+        body: JSON.stringify({
+          model: 'meta-llama/llama-3.1-8b-instruct:free',
+          stream: false, temperature: 0.3, max_tokens: 3000,
+          messages: [{ role:'system', content:SVG_SYSTEM_PROMPT },{ role:'user', content:prompt }]
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || `OpenRouter HTTP ${res.status}`);
+      rawSVG = data.choices?.[0]?.message?.content || '';
+
+    } else {
+      throw new Error('Unknown provider — please set your API key');
+    }
+
+    const svg = sanitizeSVG(rawSVG);
+    if (!svg) throw new Error('AI returned invalid SVG — try regenerating');
+
+    saveSVGToCache(topicId, svg);
+    renderGeneratedSVG(svg, topicId, topicTitle, containerEl);
+
+  } catch(e) {
+    const isQuota = /quota|rate.?limit|429|exceeded/i.test(e.message);
+    containerEl.innerHTML = `<div class="ai-diag-error">
+      <div class="ade-icon">⚠</div>
+      <div class="ade-msg">${esc(e.message)}</div>
+      <div class="ade-actions">
+        <button class="adp-btn" onclick="generateAIDiagram('${esc(topicId)}','${esc(topicTitle)}','${esc(levelTitle)}',this.closest('.ai-diag-error').parentElement)">🔄 Retry</button>
+        ${isQuota ? `<button class="adp-btn adp-btn-alt" onclick="openApiModal()">Switch Provider</button>` : ''}
+      </div>
+    </div>`;
+  }
+}
+
+function renderGeneratedSVG(svg, topicId, topicTitle, containerEl) {
+  containerEl.innerHTML = `
+    <div class="ai-diag-result">
+      <div class="ai-diag-svg-wrap" id="aisvg_${topicId}">${svg}</div>
+      <div class="ai-diag-footer">
+        <span class="ai-diag-label">🤖 AI-Generated Diagram · ${esc(topicTitle)}</span>
+        <div class="ai-diag-actions">
+          <button class="ai-diag-act" onclick="zoomAIDiagram('${esc(topicId)}')" title="Zoom">⤢ Zoom</button>
+          <button class="ai-diag-act" onclick="downloadSVG('${esc(topicId)}','${esc(topicTitle)}')" title="Download SVG">⬇ SVG</button>
+          <button class="ai-diag-act ai-diag-regen" onclick="regenDiagram('${esc(topicId)}','${esc(topicTitle)}')" title="Regenerate">↺ Regenerate</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function regenDiagram(topicId, topicTitle) {
+  // Clear cache and regenerate
+  delete SVG_CACHE[topicId];
+  try { sessionStorage.removeItem(svgCacheKey(topicId)); } catch(e) {}
+  const lvlTitle = APP.currentLevel?.fullTitle || 'marine engineering';
+  const container = document.querySelector(`#aisvg_${topicId}`)?.closest('.ai-diag-wrap');
+  if (container) generateAIDiagram(topicId, topicTitle, lvlTitle, container);
+}
+
+function zoomAIDiagram(topicId) {
+  const svgEl = document.querySelector(`#aisvg_${topicId} svg`);
+  if (!svgEl) return;
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;padding:20px;cursor:zoom-out;';
+  overlay.innerHTML = `<div style="max-width:900px;width:100%;background:var(--bg1);border-radius:16px;overflow:hidden;border:1px solid var(--b1);">
+    <div style="padding:10px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--b0);font-size:0.75rem;color:var(--tx3);">
+      <span>AI-Generated Diagram</span>
+      <button onclick="this.closest('[style*=fixed]').remove()" style="background:none;border:none;color:var(--tx3);cursor:pointer;font-size:1.1rem;">✕</button>
+    </div>
+    <div style="padding:16px;">${svgEl.outerHTML}</div>
+  </div>`;
+  overlay.addEventListener('click', e => { if(e.target===overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+}
+
+function downloadSVG(topicId, topicTitle) {
+  const svg = getSVGFromCache(topicId);
+  if (!svg) return;
+  const blob = new Blob([svg], {type:'image/svg+xml'});
+  const a    = document.createElement('a');
+  a.href     = URL.createObjectURL(blob);
+  a.download = `marineiq_${topicId}_diagram.svg`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* ══════════════════════════════════════════════════════════
+   4. INJECT AI DIAGRAM BUTTON INTO DIAGRAM PANEL
+   ══════════════════════════════════════════════════════════ */
+(function patchLoadDiagrams() {
+  const _orig = loadDiagrams;
+  loadDiagrams = function(topicId) {
+    // Load static diagrams first (existing behaviour)
+    _orig(topicId);
+
+    const grid = document.getElementById('diagGrid');
+    if (!grid) return;
+
+    const topicTitle = APP.currentTopic ? (document.querySelector('.tz-header .tz-intro-title')?.textContent || topicId) : topicId;
+
+    // Check cache first — show immediately without button
+    const cached = getSVGFromCache(topicId);
+    if (cached) {
+      const wrap = document.createElement('div');
+      wrap.className = 'ai-diag-wrap';
+      renderGeneratedSVG(cached, topicId, topicTitle, wrap);
+      grid.appendChild(wrap);
+      return;
+    }
+
+    // Add "Generate AI Diagram" card
+    const wrap = document.createElement('div');
+    wrap.className = 'ai-diag-wrap';
+    wrap.innerHTML = `<div class="ai-diag-placeholder">
+      <div class="adp-icon">✨</div>
+      <div class="adp-title">AI Diagram Generator</div>
+      <div class="adp-text">Generate a custom technical diagram for this topic using AI</div>
+      <button class="adp-btn" id="genDiagBtn_${topicId}" onclick="
+        const lvl='${esc(APP.currentLevel?.fullTitle||'marine engineering')}';
+        const title=document.querySelector('#topicZone .tz-header div>div:first-child')?.textContent||'${esc(topicId)}';
+        generateAIDiagram('${topicId}',title,lvl,this.closest('.ai-diag-wrap'))
+      ">⚡ Generate Diagram</button>
+      <div class="adp-note">Uses your free Groq / Gemini API key</div>
+    </div>`;
+    grid.appendChild(wrap);
+  };
+})();
+
+/* Also patch selectTopic override to pass correct title to diagram generator */
+(function patchSelectTopicForDiag() {
+  const _st = selectTopic;
+  selectTopic = function(topicId, title, desc, icon, sectionName) {
+    _st(topicId, title, desc, icon, sectionName);
+    // Re-run loadDiagrams with title context available
+    // (title now accessible via closure)
+    const wrap = document.querySelector('.ai-diag-wrap');
+    const btn  = document.getElementById(`genDiagBtn_${topicId}`);
+    if (btn) {
+      const lvl = APP.currentLevel?.fullTitle || 'marine engineering';
+      btn.onclick = () => generateAIDiagram(topicId, title, lvl, wrap);
+    }
+  };
+})();
+
+/* ══════════════════════════════════════════════════════════
+   5. CSS — diagram panel styles
+   ══════════════════════════════════════════════════════════ */
+(function injectDiagCSS() {
+  const s = document.createElement('style');
+  s.textContent = `
+
+/* ── AI Diagram Wrapper ── */
+.ai-diag-wrap {
+  grid-column: 1 / -1; /* full width */
+  border-radius: 14px; overflow: hidden;
+  border: 1px solid var(--b1);
+  background: var(--bg1);
+}
+
+/* ── Placeholder (before generation) ── */
+.ai-diag-placeholder {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 28px 20px; text-align: center; gap: 8px;
+  background: linear-gradient(135deg, var(--bg1), var(--bg2));
+}
+.adp-icon  { font-size: 2rem; }
+.adp-title { font-size: 0.9rem; font-weight: 700; color: var(--tx); }
+.adp-text  { font-size: 0.78rem; color: var(--tx3); max-width: 320px; line-height: 1.5; }
+.adp-note  { font-size: 0.65rem; color: var(--tx3); font-family: 'JetBrains Mono', monospace; }
+.adp-btn {
+  padding: 9px 22px; border-radius: 9px; border: none; cursor: pointer;
+  background: linear-gradient(135deg, var(--ac), var(--acD));
+  color: #020810; font-weight: 700; font-size: 0.82rem;
+  transition: all 0.15s; margin-top: 4px;
+}
+.adp-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(212,160,23,0.3); }
+.adp-btn:active { transform: none; }
+.adp-btn-alt {
+  background: var(--bg3); color: var(--tx2);
+  border: 1px solid var(--b1);
+}
+
+/* ── Generating state ── */
+.ai-diag-generating {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 32px 20px; gap: 12px; text-align: center;
+}
+.adg-spinner {
+  width: 36px; height: 36px; border-radius: 50%;
+  border: 3px solid var(--b1); border-top-color: var(--ac);
+  animation: adgSpin 0.9s linear infinite;
+}
+@keyframes adgSpin { to { transform: rotate(360deg); } }
+.adg-label { font-size: 0.87rem; font-weight: 600; color: var(--tx); }
+.adg-sub   { font-size: 0.72rem; color: var(--tx3); }
+
+/* ── Error state ── */
+.ai-diag-error {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 24px 20px; gap: 10px; text-align: center;
+}
+.ade-icon { font-size: 1.5rem; }
+.ade-msg  { font-size: 0.78rem; color: #f87171; max-width: 360px; line-height: 1.5; }
+.ade-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 4px; }
+
+/* ── Result ── */
+.ai-diag-result { display: flex; flex-direction: column; }
+.ai-diag-svg-wrap {
+  width: 100%; overflow: hidden;
+  background: #030b14; min-height: 200px;
+  display: flex; align-items: center; justify-content: center;
+}
+.ai-diag-svg-wrap svg {
+  width: 100% !important; height: auto !important;
+  min-height: 200px; max-height: 380px;
+  display: block !important;
+}
+.ai-diag-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 12px; background: var(--bg2);
+  border-top: 1px solid var(--b0); flex-wrap: wrap; gap: 8px;
+}
+.ai-diag-label {
+  font-family: 'JetBrains Mono', monospace; font-size: 0.6rem;
+  color: var(--tx3); text-transform: uppercase; letter-spacing: 0.07em;
+}
+.ai-diag-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.ai-diag-act {
+  padding: 4px 10px; border-radius: 6px; border: 1px solid var(--b1);
+  background: var(--bg3); color: var(--tx3); cursor: pointer;
+  font-size: 0.65rem; font-family: 'JetBrains Mono', monospace;
+  transition: all 0.12s; white-space: nowrap;
+}
+.ai-diag-act:hover { border-color: var(--ac); color: var(--acL); }
+.ai-diag-regen:hover { border-color: #60a5fa; color: #60a5fa; }
+
+/* ── Mobile ── */
+@media (max-width: 768px) {
+  .ai-diag-placeholder { padding: 20px 14px; }
+  .adp-btn { padding: 10px 20px; min-height: 44px; }
+  .ai-diag-svg-wrap svg { max-height: 280px; }
+  .ai-diag-footer { padding: 6px 10px; }
+  .ai-diag-act { padding: 5px 9px; min-height: 34px; }
+}
+  `;
+  document.head.appendChild(s);
+})();
+
+console.log('%cMarineIQ — AI Diagram Generator active. 120+ topic prompts loaded.', 'color:#d4a017;font-weight:bold');
+
+
+
+
+/* ══ QUIZ SYSTEM v2 ══ */
+/* ═══════════════════════════════════════════════════════════════════════
+   QUIZ SYSTEM v2 — Complete Rebuild
+   Fixes: click not working, difficulty levels, question count selector,
+          explanations, progress bar, results screen, better AI prompts
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ══════════════════════════════════════════════════════════
+   1. QUIZ STATE
+   ══════════════════════════════════════════════════════════ */
+const QUIZ = {
+  data:       [],      // array of question objects
+  index:      0,       // current question index
+  score:      0,       // correct answers
+  total:      0,       // questions answered
+  wrong:      [],      // wrong answer indices for review
+  answered:   false,   // has current Q been answered?
+  difficulty: 'mixed', // easy | medium | hard | mixed
+  count:      10,      // questions per round: 5 | 10 | 15 | 20
+  generating: false,   // lock to prevent double-generate
+};
+
+/* ══════════════════════════════════════════════════════════
+   2. DIFFICULTY-AWARE PROMPT BUILDER
+   ══════════════════════════════════════════════════════════ */
+function buildQuizPrompt(topicId, topicTitle, lvlLabel, difficulty, count) {
+  const kb   = (typeof TOPIC_KNOWLEDGE !== 'undefined' && TOPIC_KNOWLEDGE[topicId]) || {};
+  const fc   = (kb.flashcards || []).slice(0, 3).map(f => `Q: ${f.q}`).join('\n');
+  const fmls = (kb.formulas   || []).slice(0, 2).map(f => `${f.label}: ${f.eq}`).join('\n');
+
+  const diffInstructions = {
+    easy:   `EASY level — recall and recognition questions. Ask about definitions, basic names, obvious facts. e.g. "What does OWS stand for?", "Which instrument measures cylinder pressure?". No calculations required.`,
+    medium: `MEDIUM level — understanding and application questions. Ask about working principles, causes and effects, simple calculations using given values. e.g. "Why does turbocharger surge occur?", "Calculate MEP given Pm=10 bar, L=0.8m, A=0.05m², N=100 RPM."`,
+    hard:   `HARD level — analysis and expert knowledge questions. Ask about fault diagnosis, complex interactions, multi-step calculations, oral board style questions, specific IMO regulation numbers, class society requirements. e.g. "High scavenge air temperature + low Pmax simultaneously indicates what fault?", "What is the MARPOL Annex VI NOx Tier III limit for engines <130 RPM?"`,
+    mixed:  `Mix of difficulty: 30% EASY (recall), 40% MEDIUM (understanding/application), 30% HARD (analysis/diagnosis). Include at least one calculation question.`,
+  };
+
+  return {
+    system: `You are a marine engineering examiner generating MMD/oral examination questions.
+Topic: "${topicTitle}" | Level: ${lvlLabel} | Difficulty: ${difficulty.toUpperCase()}
+${diffInstructions[difficulty] || diffInstructions.mixed}
+
+Context from study material:
+${fc || 'No flashcards — use authoritative marine engineering knowledge.'}
+${fmls ? `Formulas: ${fmls}` : ''}
+
+RULES:
+- Return ONLY a valid JSON array. NO markdown. NO backticks. NO text before or after.
+- Generate exactly ${count} questions.
+- Every question must have exactly 4 options (A, B, C, D).
+- "ans" is the 0-based index (0=A, 1=B, 2=C, 3=D) of the CORRECT answer.
+- "exp" is a 1-2 sentence explanation of WHY that answer is correct, citing source if possible.
+- Questions must be factually accurate — source from Reed's Marine Engineering Series, Pounder's, IMO, MARPOL, STCW, MAN B&W manuals.
+- Do NOT repeat similar questions.
+- Vary question style: What/Why/How/Calculate/Identify fault/Which regulation.
+
+JSON format:
+[{"q":"question text","opts":["A. option","B. option","C. option","D. option"],"ans":0,"exp":"explanation citing source"}]`,
+    user: `Generate ${count} ${difficulty} difficulty marine engineering MCQs about: ${topicTitle} (${topicId}).`
+  };
+}
+
+/* ══════════════════════════════════════════════════════════
+   3. QUIZ PANEL HTML — replaces static HTML
+   ══════════════════════════════════════════════════════════ */
+function buildQuizPanelHTML() {
+  return `
+<div class="quiz-v2-wrap" id="quizV2Wrap">
+
+  <!-- SETUP SCREEN -->
+  <div class="qv2-setup" id="qv2Setup">
+    <div class="qv2-setup-title">⚙️ Quiz Settings</div>
+
+    <div class="qv2-setting-group">
+      <div class="qv2-setting-label">Difficulty</div>
+      <div class="qv2-chips" id="qv2Diff">
+        <button class="qv2-chip"           data-val="easy"   onclick="setQuizDiff('easy',  this)">🟢 Easy</button>
+        <button class="qv2-chip"           data-val="medium" onclick="setQuizDiff('medium',this)">🟡 Medium</button>
+        <button class="qv2-chip"           data-val="hard"   onclick="setQuizDiff('hard',  this)">🔴 Hard</button>
+        <button class="qv2-chip qv2-chip-active" data-val="mixed"  onclick="setQuizDiff('mixed', this)">🎯 Mixed</button>
+      </div>
+    </div>
+
+    <div class="qv2-setting-group">
+      <div class="qv2-setting-label">Questions per round</div>
+      <div class="qv2-chips" id="qv2Count">
+        <button class="qv2-chip"                data-val="5"  onclick="setQuizCount(5, this)">5</button>
+        <button class="qv2-chip qv2-chip-active" data-val="10" onclick="setQuizCount(10,this)">10</button>
+        <button class="qv2-chip"                data-val="15" onclick="setQuizCount(15,this)">15</button>
+        <button class="qv2-chip"                data-val="20" onclick="setQuizCount(20,this)">20</button>
+      </div>
+    </div>
+
+    <button class="qv2-start-btn" id="qv2StartBtn" onclick="quizStart()">
+      ⚡ Start Quiz
+    </button>
+    <div class="qv2-setup-note" id="qv2SetupNote">Select a topic from the sidebar first, then start the quiz</div>
+  </div>
+
+  <!-- LOADING SCREEN -->
+  <div class="qv2-loading" id="qv2Loading" style="display:none">
+    <div class="qv2-spinner"></div>
+    <div class="qv2-loading-label">Generating <span id="qv2LoadCount"></span> questions…</div>
+    <div class="qv2-loading-sub">AI is crafting exam-quality questions</div>
+  </div>
+
+  <!-- QUESTION SCREEN -->
+  <div class="qv2-question" id="qv2Question" style="display:none">
+    <!-- Progress bar -->
+    <div class="qv2-progress-wrap">
+      <div class="qv2-progress-bar" id="qv2ProgressBar"></div>
+    </div>
+    <div class="qv2-progress-meta">
+      <span class="qv2-diff-badge" id="qv2DiffBadge"></span>
+      <span class="qv2-qnum" id="qv2Qnum">Q1 / 10</span>
+      <span class="qv2-score-live" id="qv2ScoreLive">0 / 0</span>
+    </div>
+
+    <!-- Question text -->
+    <div class="qv2-q-text" id="qv2QText"></div>
+
+    <!-- Options -->
+    <div class="qv2-opts" id="qv2Opts"></div>
+
+    <!-- Explanation (shown after answer) -->
+    <div class="qv2-explanation" id="qv2Explanation" style="display:none">
+      <div class="qv2-exp-label">📖 Explanation</div>
+      <div class="qv2-exp-text" id="qv2ExpText"></div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="qv2-nav">
+      <button class="qv2-nav-btn qv2-nav-next" id="qv2NextBtn" onclick="quizNextQ()" style="display:none">
+        Next Question →
+      </button>
+      <button class="qv2-nav-btn qv2-nav-finish" id="qv2FinishBtn" onclick="quizFinish()" style="display:none">
+        See Results 🏁
+      </button>
+    </div>
+  </div>
+
+  <!-- RESULTS SCREEN -->
+  <div class="qv2-results" id="qv2Results" style="display:none">
+    <div class="qv2-results-grade" id="qv2Grade"></div>
+    <div class="qv2-results-score" id="qv2ResultScore"></div>
+    <div class="qv2-results-bar-wrap">
+      <div class="qv2-results-bar" id="qv2ResultsBar"></div>
+    </div>
+    <div class="qv2-results-msg" id="qv2ResultsMsg"></div>
+
+    <!-- Wrong answers review -->
+    <div class="qv2-wrong-list" id="qv2WrongList"></div>
+
+    <!-- Action buttons -->
+    <div class="qv2-results-actions">
+      <button class="qv2-start-btn" onclick="quizStart()">🔄 Retry Same Settings</button>
+      <button class="qv2-nav-btn" onclick="quizRetryWrong()" id="qv2RetryWrongBtn">↺ Retry Wrong Only</button>
+      <button class="qv2-nav-btn" onclick="showQuizSetup()">⚙️ Change Settings</button>
+    </div>
+  </div>
+
+</div>`;
+}
+
+/* ══════════════════════════════════════════════════════════
+   4. SETUP CONTROLS
+   ══════════════════════════════════════════════════════════ */
+function setQuizDiff(val, btn) {
+  QUIZ.difficulty = val;
+  document.querySelectorAll('#qv2Diff .qv2-chip').forEach(b => b.classList.remove('qv2-chip-active'));
+  btn.classList.add('qv2-chip-active');
+}
+
+function setQuizCount(val, btn) {
+  QUIZ.count = val;
+  document.querySelectorAll('#qv2Count .qv2-chip').forEach(b => b.classList.remove('qv2-chip-active'));
+  btn.classList.add('qv2-chip-active');
+}
+
+function showQuizSetup() {
+  document.getElementById('qv2Setup').style.display    = '';
+  document.getElementById('qv2Loading').style.display  = 'none';
+  document.getElementById('qv2Question').style.display = 'none';
+  document.getElementById('qv2Results').style.display  = 'none';
+}
+
+/* ══════════════════════════════════════════════════════════
+   5. QUIZ START — generate questions via AI
+   ══════════════════════════════════════════════════════════ */
+async function quizStart() {
+  if (QUIZ.generating) return;
+  if (!APP.apiKey) { openApiModal(); return; }
+
+  const topicId    = APP.currentTopic;
+  const topicTitle = document.querySelector('#topicZone .tz-header .tz-intro-title')?.textContent
+                  || document.querySelector('.sb-topic.active')?.textContent?.trim()
+                  || topicId || 'Marine Engineering';
+  const lvlLabel   = APP.currentLevel?.fullTitle || 'marine engineering';
+
+  // Update note
+  const note = document.getElementById('qv2SetupNote');
+  if (note) note.textContent = `Generating ${QUIZ.count} ${QUIZ.difficulty} questions for: ${topicTitle}`;
+
+  // Show loading
+  document.getElementById('qv2Setup').style.display    = 'none';
+  document.getElementById('qv2Loading').style.display  = '';
+  document.getElementById('qv2Question').style.display = 'none';
+  document.getElementById('qv2Results').style.display  = 'none';
+  document.getElementById('qv2LoadCount').textContent  = QUIZ.count;
+
+  QUIZ.generating = true;
+  QUIZ.data       = [];
+  QUIZ.index      = 0;
+  QUIZ.score      = 0;
+  QUIZ.total      = 0;
+  QUIZ.wrong      = [];
+  QUIZ.answered   = false;
+
+  const pid = detectProvider(APP.apiKey);
+  const { system: sysMsg, user: userMsg } = buildQuizPrompt(topicId, topicTitle, lvlLabel, QUIZ.difficulty, QUIZ.count);
+
+  try {
+    let raw = '';
+
+    if (pid === 'groq') {
+      const models = AI_PROVIDERS.groq.modelFallbacks || ['llama-3.3-70b-versatile','llama3-70b-8192'];
+      for (const model of models) {
+        const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type':'application/json','Authorization':`Bearer ${APP.apiKey}` },
+          body: JSON.stringify({ model, max_tokens:4000, temperature:0.4, stream:false,
+            messages:[{role:'system',content:sysMsg},{role:'user',content:userMsg}] })
+        });
+        const data = await res.json();
+        if (!res.ok) { if(res.status===429) continue; throw new Error(data.error?.message||`Groq ${res.status}`); }
+        raw = data.choices?.[0]?.message?.content || ''; break;
+      }
+
+    } else if (pid === 'gemini') {
+      const models = ['gemini-1.5-flash','gemini-1.5-flash-8b','gemini-1.0-pro'];
+      for (const model of models) {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${APP.apiKey}`;
+        const res = await fetch(url, {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({ contents:[{role:'user',parts:[{text:sysMsg+'\n\n'+userMsg}]}],
+            generationConfig:{maxOutputTokens:4000,temperature:0.4} })
+        });
+        const data = await res.json();
+        if (!res.ok) { const m=data.error?.message||''; if(m.includes('quota')) continue; throw new Error(m||`Gemini ${res.status}`); }
+        raw = data.candidates?.[0]?.content?.parts?.[0]?.text || ''; break;
+      }
+
+    } else if (pid === 'openrouter') {
+      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':`Bearer ${APP.apiKey}`,'HTTP-Referer':'https://marineiq.study'},
+        body:JSON.stringify({ model:'meta-llama/llama-3.1-8b-instruct:free', max_tokens:4000, temperature:0.4, stream:false,
+          messages:[{role:'system',content:sysMsg},{role:'user',content:userMsg}] })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message||`OpenRouter ${res.status}`);
+      raw = data.choices?.[0]?.message?.content || '';
+    }
+
+    // Parse JSON — strip markdown fences
+    raw = raw.replace(/^```(?:json)?\s*/im,'').replace(/\s*```$/m,'').trim();
+    // Find JSON array in response
+    const arrStart = raw.indexOf('[');
+    const arrEnd   = raw.lastIndexOf(']');
+    if (arrStart === -1 || arrEnd === -1) throw new Error('AI did not return valid JSON array');
+    raw = raw.slice(arrStart, arrEnd + 1);
+
+    QUIZ.data = JSON.parse(raw);
+    if (!Array.isArray(QUIZ.data) || QUIZ.data.length === 0) throw new Error('No questions returned');
+
+    // Validate and clean questions
+    QUIZ.data = QUIZ.data.filter(q =>
+      q.q && Array.isArray(q.opts) && q.opts.length === 4 &&
+      typeof q.ans === 'number' && q.ans >= 0 && q.ans <= 3
+    ).slice(0, QUIZ.count);
+
+    if (QUIZ.data.length === 0) throw new Error('All questions failed validation');
+
+    QUIZ.generating = false;
+    renderQuizQ();
+
+  } catch(e) {
+    QUIZ.generating = false;
+    document.getElementById('qv2Loading').style.display = 'none';
+    document.getElementById('qv2Setup').style.display   = '';
+    const note2 = document.getElementById('qv2SetupNote');
+    if (note2) note2.innerHTML = `<span style="color:#f87171">⚠ ${esc(e.message)}</span><br><small>Check your API key and try again</small>`;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   6. RENDER QUESTION
+   ══════════════════════════════════════════════════════════ */
+function renderQuizQ() {
+  const q    = QUIZ.data[QUIZ.index];
+  const total = QUIZ.data.length;
+  if (!q) { quizFinish(); return; }
+
+  QUIZ.answered = false;
+
+  // Switch to question screen
+  document.getElementById('qv2Loading').style.display  = 'none';
+  document.getElementById('qv2Setup').style.display    = 'none';
+  document.getElementById('qv2Results').style.display  = 'none';
+  document.getElementById('qv2Question').style.display = '';
+
+  // Progress
+  const pct = Math.round((QUIZ.index / total) * 100);
+  document.getElementById('qv2ProgressBar').style.width = pct + '%';
+  document.getElementById('qv2Qnum').textContent        = `Q${QUIZ.index + 1} / ${total}`;
+  document.getElementById('qv2ScoreLive').textContent   = `${QUIZ.score} / ${QUIZ.total}`;
+
+  // Difficulty badge
+  const diffBadge = document.getElementById('qv2DiffBadge');
+  const diffMap   = { easy:'🟢 Easy', medium:'🟡 Medium', hard:'🔴 Hard', mixed:'🎯 Mixed' };
+  diffBadge.textContent = diffMap[QUIZ.difficulty] || '';
+
+  // Question text
+  document.getElementById('qv2QText').textContent = q.q;
+
+  // Options — rebuilt fresh (clears pointer-events)
+  const optsEl = document.getElementById('qv2Opts');
+  optsEl.innerHTML = '';
+  const letters = ['A','B','C','D'];
+  q.opts.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.className   = 'qv2-opt';
+    btn.dataset.idx = i;
+    // Option text — strip leading "A. " if AI already included it, then re-add
+    const cleanOpt = opt.replace(/^[ABCD]\.\s*/,'');
+    btn.innerHTML = `<span class="qv2-opt-letter">${letters[i]}</span><span class="qv2-opt-text">${esc(cleanOpt)}</span>`;
+    btn.addEventListener('click', () => handleQuizAnswer(i, q.ans, q.exp || ''));
+    optsEl.appendChild(btn);
+  });
+
+  // Hide explanation and nav
+  document.getElementById('qv2Explanation').style.display = 'none';
+  document.getElementById('qv2NextBtn').style.display     = 'none';
+  document.getElementById('qv2FinishBtn').style.display   = 'none';
+}
+
+/* ══════════════════════════════════════════════════════════
+   7. HANDLE ANSWER — the click fix
+   Uses addEventListener (NOT onclick attr) — avoids pointer-events issues
+   ══════════════════════════════════════════════════════════ */
+function handleQuizAnswer(selected, correct, explanation) {
+  if (QUIZ.answered) return; // guard: ignore double-tap
+  QUIZ.answered = true;
+  QUIZ.total++;
+
+  const optsEl = document.getElementById('qv2Opts');
+  const btns   = optsEl.querySelectorAll('.qv2-opt');
+
+  // Disable all buttons via class (NOT pointer-events inline — that was the bug)
+  btns.forEach(b => b.classList.add('qv2-opt-done'));
+
+  // Mark correct + selected
+  btns[correct].classList.add('qv2-opt-correct');
+  if (selected !== correct) {
+    btns[selected].classList.add('qv2-opt-wrong');
+    QUIZ.wrong.push(QUIZ.index);
+  } else {
+    QUIZ.score++;
+  }
+
+  // Update live score
+  document.getElementById('qv2ScoreLive').textContent = `${QUIZ.score} / ${QUIZ.total}`;
+
+  // Show explanation
+  if (explanation) {
+    document.getElementById('qv2ExpText').textContent      = explanation;
+    document.getElementById('qv2Explanation').style.display = '';
+  }
+
+  // Show next/finish button
+  const isLast = QUIZ.index >= QUIZ.data.length - 1;
+  document.getElementById('qv2NextBtn').style.display   = isLast ? 'none' : '';
+  document.getElementById('qv2FinishBtn').style.display = isLast ? '' : 'none';
+}
+
+/* ══════════════════════════════════════════════════════════
+   8. NAVIGATION
+   ══════════════════════════════════════════════════════════ */
+function quizNextQ() {
+  QUIZ.index++;
+  if (QUIZ.index >= QUIZ.data.length) { quizFinish(); return; }
+  renderQuizQ();
+}
+
+function quizFinish() {
+  const total = QUIZ.data.length;
+  const pct   = total > 0 ? Math.round((QUIZ.score / total) * 100) : 0;
+
+  // Grade
+  let grade, gradeColor, msg;
+  if      (pct >= 90) { grade='A+'; gradeColor='#34d399'; msg='Outstanding! Ready for the oral board.'; }
+  else if (pct >= 75) { grade='A';  gradeColor='#60a5fa'; msg='Well done. Strong understanding of this topic.'; }
+  else if (pct >= 60) { grade='B';  gradeColor='#d4a017'; msg='Good — review the explanations for missed questions.'; }
+  else if (pct >= 45) { grade='C';  gradeColor='#f97316'; msg='Needs revision. Study the formulas and key points.'; }
+  else                { grade='D';  gradeColor='#f87171'; msg='More study needed before the exam. Review all notes.'; }
+
+  // Show results screen
+  document.getElementById('qv2Question').style.display = 'none';
+  document.getElementById('qv2Results').style.display  = '';
+
+  document.getElementById('qv2Grade').innerHTML =
+    `<span style="color:${gradeColor};font-size:3rem;font-weight:800">${grade}</span>`;
+  document.getElementById('qv2ResultScore').textContent  = `${QUIZ.score} / ${total} correct  (${pct}%)`;
+  document.getElementById('qv2ResultsBar').style.width   = pct + '%';
+  document.getElementById('qv2ResultsBar').style.background = gradeColor;
+  document.getElementById('qv2ResultsMsg').textContent   = msg;
+
+  // Retry wrong button
+  const retryBtn = document.getElementById('qv2RetryWrongBtn');
+  if (retryBtn) retryBtn.style.display = QUIZ.wrong.length > 0 ? '' : 'none';
+
+  // Wrong answers review
+  const wrongList = document.getElementById('qv2WrongList');
+  if (QUIZ.wrong.length > 0) {
+    wrongList.innerHTML = `<div class="qv2-wrong-title">❌ Review missed questions (${QUIZ.wrong.length})</div>` +
+      QUIZ.wrong.map(i => {
+        const q = QUIZ.data[i];
+        const letters = ['A','B','C','D'];
+        return `<div class="qv2-wrong-item">
+          <div class="qv2-wrong-q">${esc(q.q)}</div>
+          <div class="qv2-wrong-ans">✅ Correct: <strong>${letters[q.ans]}. ${esc(q.opts[q.ans].replace(/^[ABCD]\.\s*/,''))}</strong></div>
+          ${q.exp ? `<div class="qv2-wrong-exp">${esc(q.exp)}</div>` : ''}
+        </div>`;
+      }).join('');
+  } else {
+    wrongList.innerHTML = '<div class="qv2-wrong-title" style="color:var(--cadet)">🎉 Perfect score — no missed questions!</div>';
+  }
+
+  // Update legacy score display if it exists
+  if (typeof updateQuizScore === 'function') {
+    APP.quizScore = { c: QUIZ.score, t: total };
+    updateQuizScore();
+  }
+
+  // Track quiz taken stat
+  APP.stats = APP.stats || {};
+  APP.stats.quizTaken = (APP.stats.quizTaken || 0) + 1;
+  try { localStorage.setItem('miq_stats', JSON.stringify(APP.stats)); } catch(e) {}
+}
+
+function quizRetryWrong() {
+  if (QUIZ.wrong.length === 0) return;
+  // Build a new dataset from wrong answers only
+  QUIZ.data  = QUIZ.wrong.map(i => QUIZ.data[i]);
+  QUIZ.index = 0; QUIZ.score = 0; QUIZ.total = 0; QUIZ.wrong = []; QUIZ.answered = false;
+  renderQuizQ();
+}
+
+/* ══════════════════════════════════════════════════════════
+   9. INJECT NEW QUIZ HTML into the existing panel
+   ══════════════════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', () => {
+  const panel = document.getElementById('panel-quiz');
+  if (panel) {
+    panel.innerHTML = buildQuizPanelHTML();
+  }
+});
+
+/* ══════════════════════════════════════════════════════════
+   10. CSS
+   ══════════════════════════════════════════════════════════ */
+(function injectQuizCSS() {
+  const s = document.createElement('style');
+  s.textContent = `
+
+/* ── Quiz v2 Wrapper ── */
+.quiz-v2-wrap {
+  background: var(--bg1); border: 1px solid var(--b0);
+  border-radius: 14px; overflow: hidden;
+}
+
+/* ── Setup Screen ── */
+.qv2-setup {
+  padding: 22px; display: flex; flex-direction: column; gap: 16px;
+}
+.qv2-setup-title {
+  font-size: 0.9rem; font-weight: 700; color: var(--tx); margin-bottom: 2px;
+}
+.qv2-setting-group { display: flex; flex-direction: column; gap: 8px; }
+.qv2-setting-label {
+  font-size: 0.7rem; font-weight: 600; color: var(--tx3);
+  text-transform: uppercase; letter-spacing: 0.08em;
+  font-family: 'JetBrains Mono', monospace;
+}
+.qv2-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.qv2-chip {
+  padding: 7px 16px; border-radius: 8px; border: 1px solid var(--b1);
+  background: var(--bg2); color: var(--tx2); cursor: pointer;
+  font-size: 0.78rem; font-weight: 500; transition: all 0.13s;
+  min-height: 36px;
+}
+.qv2-chip:hover { border-color: var(--ac); color: var(--tx); }
+.qv2-chip-active {
+  border-color: var(--ac) !important; background: rgba(212,160,23,0.1) !important;
+  color: var(--acL) !important; font-weight: 700 !important;
+}
+.qv2-start-btn {
+  padding: 12px 24px; border-radius: 10px; border: none; cursor: pointer;
+  background: linear-gradient(135deg, var(--ac), var(--acD));
+  color: #020810; font-weight: 700; font-size: 0.9rem;
+  transition: all 0.15s; align-self: flex-start; min-height: 44px;
+}
+.qv2-start-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(212,160,23,0.3); }
+.qv2-start-btn:active { transform: none; }
+.qv2-setup-note {
+  font-size: 0.72rem; color: var(--tx3); line-height: 1.5;
+}
+
+/* ── Loading Screen ── */
+.qv2-loading {
+  padding: 40px; display: flex; flex-direction: column;
+  align-items: center; gap: 12px; text-align: center;
+}
+.qv2-spinner {
+  width: 38px; height: 38px; border-radius: 50%;
+  border: 3px solid var(--b1); border-top-color: var(--ac);
+  animation: qv2Spin 0.85s linear infinite;
+}
+@keyframes qv2Spin { to { transform: rotate(360deg); } }
+.qv2-loading-label { font-size: 0.9rem; font-weight: 600; color: var(--tx); }
+.qv2-loading-sub   { font-size: 0.75rem; color: var(--tx3); }
+
+/* ── Question Screen ── */
+.qv2-question { display: flex; flex-direction: column; }
+
+.qv2-progress-wrap {
+  height: 4px; background: var(--bg3); width: 100%;
+}
+.qv2-progress-bar {
+  height: 100%; background: linear-gradient(90deg, var(--ac), var(--acL));
+  transition: width 0.4s ease; border-radius: 0 2px 2px 0;
+}
+.qv2-progress-meta {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 16px 0; gap: 8px; flex-wrap: wrap;
+}
+.qv2-diff-badge {
+  font-size: 0.68rem; font-weight: 600; padding: 3px 9px;
+  border-radius: 20px; border: 1px solid var(--b1);
+  background: var(--bg2); color: var(--tx2);
+}
+.qv2-qnum {
+  font-family: 'JetBrains Mono', monospace; font-size: 0.68rem; color: var(--tx3);
+}
+.qv2-score-live {
+  font-family: 'JetBrains Mono', monospace; font-size: 0.72rem;
+  color: var(--acL); font-weight: 700;
+}
+
+.qv2-q-text {
+  padding: 16px 18px 14px; font-size: 0.92rem; font-weight: 500;
+  line-height: 1.65; color: var(--tx);
+}
+
+/* ── Options — THE CLICK FIX ── */
+.qv2-opts {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 0 16px 14px;
+}
+.qv2-opt {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 12px 14px; border-radius: 10px; border: 1px solid var(--b1);
+  background: var(--bg2); cursor: pointer; text-align: left;
+  transition: border-color 0.12s, background 0.12s; width: 100%;
+  /* NO pointer-events manipulation — use class instead */
+  min-height: 48px; position: relative;
+}
+.qv2-opt:hover:not(.qv2-opt-done) {
+  border-color: var(--ac); background: rgba(212,160,23,0.05);
+}
+/* Done state — disabled via CSS class, not inline style */
+.qv2-opt.qv2-opt-done { cursor: default; }
+.qv2-opt.qv2-opt-done:hover { border-color: var(--b1); background: var(--bg2); }
+.qv2-opt.qv2-opt-correct { border-color: var(--cadet) !important; background: rgba(52,211,153,0.08) !important; }
+.qv2-opt.qv2-opt-wrong   { border-color: #f87171 !important; background: rgba(248,113,113,0.07) !important; }
+.qv2-opt.qv2-opt-correct .qv2-opt-letter { background: rgba(52,211,153,0.2); color: #34d399; border-color: #34d399; }
+.qv2-opt.qv2-opt-wrong   .qv2-opt-letter { background: rgba(248,113,113,0.2); color: #f87171; border-color: #f87171; }
+
+.qv2-opt-letter {
+  min-width: 26px; height: 26px; border-radius: 6px;
+  border: 1.5px solid var(--b2); display: flex; align-items: center;
+  justify-content: center; font-size: 0.72rem; font-weight: 700;
+  font-family: 'JetBrains Mono', monospace; color: var(--tx3);
+  flex-shrink: 0; background: var(--bg3); transition: all 0.12s;
+}
+.qv2-opt-text {
+  font-size: 0.84rem; line-height: 1.5; color: var(--tx2);
+  transition: color 0.12s; padding-top: 2px;
+}
+.qv2-opt:hover:not(.qv2-opt-done) .qv2-opt-text   { color: var(--tx); }
+.qv2-opt.qv2-opt-correct .qv2-opt-text { color: #86efac; }
+.qv2-opt.qv2-opt-wrong   .qv2-opt-text { color: #fca5a5; }
+
+/* ── Explanation ── */
+.qv2-explanation {
+  margin: 0 16px 12px; padding: 12px 14px;
+  background: rgba(212,160,23,0.06); border: 1px solid rgba(212,160,23,0.2);
+  border-radius: 10px;
+}
+.qv2-exp-label {
+  font-size: 0.68rem; font-weight: 700; color: var(--ac);
+  text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 5px;
+}
+.qv2-exp-text { font-size: 0.81rem; color: var(--tx2); line-height: 1.65; }
+
+/* ── Navigation ── */
+.qv2-nav { padding: 10px 16px 16px; display: flex; gap: 8px; }
+.qv2-nav-btn {
+  padding: 10px 20px; border-radius: 9px; border: 1px solid var(--b1);
+  background: var(--bg3); color: var(--tx2); cursor: pointer;
+  font-size: 0.82rem; font-weight: 600; transition: all 0.13s; min-height: 42px;
+}
+.qv2-nav-next { background: linear-gradient(135deg, var(--ac), var(--acD)); border: none; color: #020810; }
+.qv2-nav-next:hover { box-shadow: 0 4px 16px rgba(212,160,23,0.3); transform: translateY(-1px); }
+.qv2-nav-finish {
+  background: linear-gradient(135deg, #34d399, #059669); border: none; color: #020810;
+}
+
+/* ── Results Screen ── */
+.qv2-results {
+  padding: 24px; display: flex; flex-direction: column;
+  align-items: center; gap: 12px; text-align: center;
+}
+.qv2-results-grade  { line-height: 1; }
+.qv2-results-score  { font-size: 1.1rem; font-weight: 700; color: var(--tx); }
+.qv2-results-bar-wrap {
+  width: 100%; max-width: 300px; height: 8px;
+  background: var(--bg3); border-radius: 4px; overflow: hidden;
+}
+.qv2-results-bar {
+  height: 100%; border-radius: 4px; transition: width 0.8s ease;
+}
+.qv2-results-msg  { font-size: 0.83rem; color: var(--tx2); }
+.qv2-results-actions {
+  display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
+  margin-top: 4px; width: 100%;
+}
+
+/* ── Wrong Review ── */
+.qv2-wrong-list { width: 100%; text-align: left; }
+.qv2-wrong-title {
+  font-size: 0.75rem; font-weight: 700; color: var(--tx3);
+  text-transform: uppercase; letter-spacing: 0.07em;
+  margin-bottom: 10px; padding-bottom: 6px;
+  border-bottom: 1px solid var(--b0);
+}
+.qv2-wrong-item {
+  padding: 10px 12px; background: var(--bg2);
+  border: 1px solid var(--b0); border-radius: 9px;
+  margin-bottom: 7px;
+}
+.qv2-wrong-q   { font-size: 0.8rem; color: var(--tx); margin-bottom: 5px; line-height: 1.5; }
+.qv2-wrong-ans { font-size: 0.76rem; color: #86efac; margin-bottom: 4px; }
+.qv2-wrong-exp { font-size: 0.73rem; color: var(--tx3); line-height: 1.5; font-style: italic; }
+
+/* ── Mobile ── */
+@media (max-width: 768px) {
+  .qv2-setup    { padding: 16px; gap: 14px; }
+  .qv2-q-text   { padding: 14px 14px 10px; font-size: 0.87rem; }
+  .qv2-opts     { padding: 0 12px 12px; gap: 7px; }
+  .qv2-opt      { padding: 12px 12px; min-height: 52px; }
+  .qv2-opt-text { font-size: 0.82rem; }
+  .qv2-chips    { gap: 6px; }
+  .qv2-chip     { padding: 8px 13px; min-height: 40px; font-size: 0.8rem; }
+  .qv2-results  { padding: 18px 16px; }
+  .qv2-results-actions .qv2-start-btn { align-self: stretch; }
+  .qv2-nav      { padding: 8px 12px 14px; }
+  .qv2-nav-btn  { min-height: 44px; }
+  .qv2-explanation { margin: 0 12px 10px; }
+}
+
+/* ── Override old quiz CSS that may conflict ── */
+#panel-quiz .quiz-wrap { display: none !important; }
+  `;
+  document.head.appendChild(s);
+})();
+
+console.log('%cMarineIQ Quiz v2 — levels + count selector + click fix + results screen', 'color:#d4a017;font-weight:bold');
+
+
 </script>
 </body>
 </html>
