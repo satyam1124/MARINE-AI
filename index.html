@@ -546,18 +546,32 @@ body::before {
 }
 
 /* Search bar */
-.search-wrap { position: relative; margin-bottom: 10px; }
+/* Search row: flex layout with separate ref + ask buttons */
+.search-row {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 8px;
+}
+.search-wrap { position: relative; flex: 1; min-width: 0; }
 .search-input {
   width: 100%; background: var(--bg1); border: 1px solid var(--b1);
-  border-radius: 13px; padding: 15px 140px 15px 50px;
+  border-radius: 13px; padding: 15px 16px 15px 46px;
   font-family: 'DM Sans', sans-serif; font-size: 0.94rem;
   color: var(--tx); outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
 }
 .search-input::placeholder { color: var(--tx3); font-style: italic; font-size: 0.9rem; }
 .search-input:focus { border-color: rgba(14,165,233,0.45); box-shadow: 0 0 0 3px rgba(14,165,233,0.06); }
-.search-icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 1rem; color: var(--tx3); pointer-events: none; }
+.search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 1rem; color: var(--tx3); pointer-events: none; }
+.ask-btn-outer {
+  background: var(--ac); border: none; border-radius: 9px;
+  padding: 12px 18px; font-family: 'Syne', sans-serif; font-weight: 700;
+  font-size: 0.75rem; letter-spacing: 0.04em; color: #fff;
+  cursor: pointer; transition: all 0.15s; white-space: nowrap; flex-shrink: 0;
+  height: 48px; display: flex; align-items: center;
+}
+.ask-btn-outer:hover { background: var(--acL); color: #000; }
+/* Keep old .ask-btn alias for any remaining references */
 .ask-btn {
-  position: absolute; right: 7px; top: 50%; transform: translateY(-50%);
   background: var(--ac); border: none; border-radius: 9px;
   padding: 9px 20px; font-family: 'Syne', sans-serif; font-weight: 700;
   font-size: 0.75rem; letter-spacing: 0.04em; color: #fff;
@@ -884,11 +898,13 @@ body::before {
 <!-- ═══════════════════════════════════════════════════════════════
      ZONE 2: HTML BODY
      ═══════════════════════════════════════════════════════════════ -->
-  <!-- KaTeX for math formula rendering -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <!-- KaTeX for math formula rendering (graceful fallback if CDN unavailable) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" onerror="console.log('KaTeX CSS unavailable - formulas will show as text')">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"
+    onerror="window.katex=null;console.log('KaTeX unavailable')"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
-    onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\(',right:'\\)',display:false},{left:'\\[',right:'\\]',display:true}]});"></script>
+    onerror="window.renderMathInElement=function(){};console.log('KaTeX auto-render unavailable')"
+    onload="try{renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\(',right:'\\)',display:false},{left:'\\[',right:'\\]',display:true}],throwOnError:false});}catch(e){}"></script>
 </head>
 <body>
 
@@ -1087,12 +1103,14 @@ body::before {
             </div>
           </div>
 
-          <div class="search-wrap">
-            <span class="search-icon">🔍</span>
-            <input class="search-input" id="searchInput" type="text"
-              placeholder="Ask any marine engineering question…" autocomplete="off"/>
-            <button class="ref-lib-btn" id="refLibBtn" onclick="openRefLibrary()" title="Select Reference Book">📚</button>
-            <button class="ask-btn" id="askBtn" onclick="doAsk()">ASK AI →</button>
+          <div class="search-row">
+            <div class="search-wrap">
+              <span class="search-icon">🔍</span>
+              <input class="search-input" id="searchInput" type="text"
+                placeholder="Ask any marine engineering question…" autocomplete="off"/>
+            </div>
+            <button class="ref-lib-btn" id="refLibBtn" onclick="openRefLibrary()" title="Select Reference Book">📚 Book</button>
+            <button class="ask-btn-outer" id="askBtn" onclick="doAsk()">ASK AI →</button>
           </div>
           <div class="ref-badge-row">
             <span class="ref-active-badge" id="refBadge" style="display:none" onclick="selectRefBook(null);updateRefBadge()"></span>
@@ -14923,7 +14941,7 @@ const DIAGRAM_PATTERNS = [
   /\bwhat does.+look like\b/i,
 ];
 
-const DIAGRAM_PROMPTS = {
+const MARINE_DIAGRAM_PROMPTS = {
   'piston': 'Marine diesel engine piston cross-section showing: crown, piston rings (top compression, 2nd compression, oil scraper), skirt, pin boss, cooling oil passage. MAN B&W type.',
   'cylinder head': 'Marine diesel cylinder head cross-section: exhaust valve with cage and seat, fuel injector, starting air valve, indicator cock, cooling water passages.',
   'turbocharger': 'Marine turbocharger cross-section: turbine wheel, compressor wheel, floating ring bearings, oil inlet/outlet, gas inlet/outlet, air inlet/outlet.',
@@ -14945,7 +14963,7 @@ function detectDiagramRequest(query) {
   const qLow = query.toLowerCase();
   const isDiagram = DIAGRAM_PATTERNS.some(p => p.test(query));
   if (!isDiagram) return null;
-  for (const [key, prompt] of Object.entries(DIAGRAM_PROMPTS)) {
+  for (const [key, prompt] of Object.entries(MARINE_DIAGRAM_PROMPTS)) {
     if (qLow.includes(key)) return { key, prompt };
   }
   return { key: 'generic', prompt: null };
