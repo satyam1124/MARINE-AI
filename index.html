@@ -11715,56 +11715,7 @@ console.log('%cMarineIQ — Formula Viz v3 + Quiz Engine v3 loaded', 'color:#4ad
 /* ══════════════════════════════════════════════════════════
    4. SUBTOPIC NAVIGATION — click a subtopic → load its content
    ══════════════════════════════════════════════════════════ */
-(function addSubtopicNavigation(){
-  /* Inject subtopic CSS */
-  const s = document.createElement('style');
-  s.textContent = `
-.stopic-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(240px,1fr));
-  gap: 10px; padding: 14px 0 4px;
-}
-.stopic-card {
-  background: var(--bg1); border: 1px solid var(--b0); border-radius: 12px;
-  padding: 14px 16px; cursor: pointer; transition: all .15s;
-  display: flex; align-items: flex-start; gap: 10px;
-}
-.stopic-card:hover { border-color: var(--ac); box-shadow: 0 4px 16px rgba(0,0,0,.2); transform: translateY(-2px); }
-.stopic-icon { font-size: 1.4rem; flex-shrink: 0; margin-top: 2px; }
-.stopic-title { font-size: .82rem; font-weight: 700; color: var(--tx); margin-bottom: 3px; }
-.stopic-desc  { font-size: .72rem; color: var(--tx2); line-height: 1.5; }
-.stopic-section-label {
-  font-family: 'JetBrains Mono', monospace; font-size: .58rem;
-  letter-spacing: .1em; text-transform: uppercase; color: var(--tx3);
-  padding: 10px 0 4px; font-weight: 600;
-}
-body.light-mode .stopic-card { background: white!important; border-color: var(--b0)!important; }
-body.light-mode .stopic-card:hover { box-shadow: 0 4px 16px rgba(13,30,53,.1)!important; }
-@media(max-width:600px){ .stopic-grid { grid-template-columns: 1fr 1fr; gap: 8px; } }
-@media(max-width:380px){ .stopic-grid { grid-template-columns: 1fr; } }
-  `;
-  document.head.appendChild(s);
-
-  /* Patch selectTopic to show subtopic grid if topic has subtopics */
-  const _orig = selectTopic;
-  selectTopic = function(topicId, title, desc, icon, sectionName){
-    _orig(topicId, title, desc, icon, sectionName);
-    const kb = (typeof TOPIC_KNOWLEDGE !== 'undefined') && TOPIC_KNOWLEDGE[topicId];
-    if(!kb || !kb.subtopics || !kb.subtopics.length) return;
-    /* Show subtopics above the tabs */
-    const tz = document.getElementById('topicZone');
-    if(!tz) return;
-    let sg = tz.querySelector('.stopic-grid-wrap');
-    if(!sg){ sg = document.createElement('div'); sg.className='stopic-grid-wrap'; tz.insertBefore(sg, tz.firstChild); }
-    sg.innerHTML = '<div class="stopic-section-label">📚 Topics in this subject — click to study</div>'
-      + '<div class="stopic-grid">'
-      + kb.subtopics.map(st => `
-        <div class="stopic-card" onclick="loadSubtopicContent('${topicId}','${st.id}','${(st.title||'').replace(/'/g,"\\'")}','${(st.desc||'').replace(/'/g,"\\'").replace(/"/g,'&quot;')}')">
-          <div class="stopic-icon">${st.icon||'📖'}</div>
-          <div><div class="stopic-title">${esc(st.title)}</div><div class="stopic-desc">${esc(st.desc||'')}</div></div>
-        </div>`).join('')
-      + '</div>';
-  };
-})();
+/* old addSubtopicNavigation removed — chapter system in Script 5 handles this */
 
 function loadSubtopicContent(parentId, subtopicId, title, desc){
   /* Set current virtual topic for quiz + AI context */
@@ -13318,6 +13269,1084 @@ window.launchSubjectQuiz = function(topicId, topicTitle){
 if(typeof window.esc !== 'function'){
   window.esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
+
+/* ═══════════════════════════════════════════════
+   ALL 48 BTech Subjects — full chapter data
+   Uses ONLY double quotes to avoid JS parse issues
+   ═══════════════════════════════════════════════ */
+
+setChapters("bt_maths1","📐","Engineering Mathematics I",
+  "Calculus, matrices, series, ODEs — prerequisite for all engineering subjects","Sem 1",[
+  { id:"m1_matrices", icon:"🔢", title:"Matrices & Determinants",
+    desc:"Matrix operations, determinants, inverse, Cramer's rule, eigenvalues",
+    formulas:[
+      { label:"Determinant 2×2", eq:"det(A) = ad − bc", note:"For A=[[a,b],[c,d]]. Foundation for solving systems of equations." },
+      { label:"Cramer's Rule", eq:"x = det(Ax)/det(A)", note:"Solves simultaneous linear equations. Ax is A with x-column replaced by constants." },
+      { label:"Eigenvalue Equation", eq:"det(A − λI) = 0", note:"Characteristic equation. Roots λ are eigenvalues of matrix A." },
+    ], flashcards:[
+      { q:"What is a singular matrix?", a:"A square matrix with determinant = 0. Has no inverse." },
+      { q:"Cayley-Hamilton theorem?", a:"Every square matrix satisfies its own characteristic equation." },
+    ]
+  },
+  { id:"m1_diff", icon:"📈", title:"Differential Calculus",
+    desc:"Limits, derivatives, chain/product/quotient rules, maxima-minima, Taylor series",
+    formulas:[
+      { label:"Chain Rule", eq:"dy/dx = (dy/du)(du/dx)", note:"For composite functions y=f(u), u=g(x)." },
+      { label:"Taylor Series", eq:"f(x) = f(a) + f'(a)(x-a) + f''(a)(x-a)²/2! + …", note:"Polynomial approximation around point a. Maclaurin: a=0." },
+    ], flashcards:[
+      { q:"Condition for local maximum at x=c?", a:"f'(c)=0 and f''(c)<0." },
+    ]
+  },
+  { id:"m1_int", icon:"∫", title:"Integral Calculus",
+    desc:"Indefinite/definite integrals, integration by parts, area and volume calculations",
+    formulas:[
+      { label:"Integration by Parts", eq:"∫u dv = uv − ∫v du", note:"Choose u by LIATE order: Logs, Inverse trig, Algebraic, Trig, Exponential." },
+      { label:"Fundamental Theorem", eq:"∫ₐᵇ f(x)dx = F(b) − F(a)", note:"F is antiderivative of f. Gives area under curve from a to b." },
+    ], flashcards:[
+      { q:"∫sin(x)dx?", a:"−cos(x) + C" },
+    ]
+  },
+  { id:"m1_ode", icon:"〰️", title:"Ordinary Differential Equations",
+    desc:"1st order (separable, linear, exact), 2nd order with constant coefficients",
+    formulas:[
+      { label:"1st Order Linear ODE", eq:"dy/dx + Py = Q  →  IF = e^∫P dx", note:"Integrating factor method. Solution: y·IF = ∫Q·IF dx." },
+    ], flashcards:[
+      { q:"Particular integral vs complementary function?", a:"CF: general solution of homogeneous equation. PI: specific solution of non-homogeneous equation." },
+    ]
+  },
+]);
+
+setChapters("bt_physics","⚗️","Engineering Physics",
+  "Mechanics, waves, thermodynamics, electromagnetism — scientific foundation","Sem 1",[
+  { id:"phys_mech", icon:"⚙️", title:"Mechanics",
+    desc:"Newton's laws, work-energy, momentum, circular motion, simple harmonic motion",
+    formulas:[
+      { label:"Newton's 2nd Law", eq:"F = ma  [N]", note:"Net force = mass × acceleration. Basis of all dynamics." },
+      { label:"Kinetic Energy", eq:"KE = ½mv²  [J]", note:"Work-Energy theorem: Net Work = ΔKE." },
+      { label:"SUVAT", eq:"v=u+at; s=ut+½at²; v²=u²+2as", note:"Uniform acceleration equations. u=initial, v=final, a=acceleration." },
+    ], flashcards:[
+      { q:"Newton's 3rd law?", a:"For every action there is an equal and opposite reaction on a different body." },
+    ]
+  },
+  { id:"phys_thermo", icon:"🌡️", title:"Thermodynamics Basics",
+    desc:"Temperature, heat, gas laws, specific heat, first law, heat transfer modes",
+    formulas:[
+      { label:"Ideal Gas Law", eq:"PV = nRT  (or  PV = mRT)", note:"P=pressure(Pa), V=volume(m³), T=temperature(K), R=287 J/kgK for air." },
+      { label:"First Law of Thermodynamics", eq:"Q = ΔU + W  [J]", note:"Q=heat added, ΔU=change internal energy, W=work done by system." },
+    ], flashcards:[
+      { q:"Zeroth law of thermodynamics?", a:"If A is in thermal equilibrium with B, and B with C, then A is in equilibrium with C. Basis for temperature measurement." },
+    ]
+  },
+  { id:"phys_waves", icon:"〰️", title:"Waves & Optics",
+    desc:"Wave properties, sound, light, reflection, refraction, interference, diffraction",
+    formulas:[
+      { label:"Wave Equation", eq:"v = f × λ", note:"v=velocity(m/s), f=frequency(Hz), λ=wavelength(m)." },
+      { label:"Snell's Law", eq:"n₁ sinθ₁ = n₂ sinθ₂", note:"n=refractive index. Light bends toward normal entering denser medium." },
+    ], flashcards:[
+      { q:"What is resonance?", a:"When forced vibration frequency equals natural frequency. Amplitude becomes maximum." },
+    ]
+  },
+  { id:"phys_em", icon:"⚡", title:"Electromagnetism",
+    desc:"Electric and magnetic fields, electromagnetic induction, Faraday/Lenz law",
+    formulas:[
+      { label:"Faraday's Law", eq:"EMF = −N × dΦ/dt  [V]", note:"N=turns, Φ=magnetic flux(Wb). Basis of all generators and transformers." },
+      { label:"Motor Force", eq:"F = BIL sinθ  [N]", note:"B=flux density(T), I=current(A), L=length(m). Basis of electric motors." },
+    ], flashcards:[
+      { q:"Lenz's law?", a:"Induced EMF opposes the change causing it — conservation of energy." },
+    ]
+  },
+]);
+
+setChapters("bt_chem","🧪","Engineering Chemistry",
+  "Corrosion, water treatment, fuel chemistry, polymers — applied chemistry for marine engineers","Sem 1",[
+  { id:"chem_corr", icon:"🌊", title:"Corrosion Science",
+    desc:"Electrochemical corrosion, galvanic series, cathodic protection, coatings, inhibitors",
+    formulas:[
+      { label:"Anode/Cathode Reactions", eq:"Anode: Fe → Fe²⁺ + 2e⁻  |  Cathode: O₂ + 2H₂O + 4e⁻ → 4OH⁻", note:"Less noble metal = anode (corrodes). Rate depends on O₂, temperature, salinity." },
+    ], flashcards:[
+      { q:"Galvanic corrosion condition?", a:"Two dissimilar metals in electrical contact in an electrolyte. Less noble metal becomes anode and corrodes." },
+      { q:"How does ICCP work?", a:"Impressed Current Cathodic Protection — external DC current makes hull the cathode, stopping corrosion." },
+    ]
+  },
+  { id:"chem_water", icon:"💧", title:"Water Treatment",
+    desc:"Feed water chemistry, scale/corrosion control, pH, oxygen scavenging, boiler water, RO",
+    formulas:[
+      { label:"pH Definition", eq:"pH = −log[H⁺]  (neutral=7, acidic<7, alkaline>7)", note:"Boiler feed water: pH 8.5–9.5. Cooling water: pH 7.5–8.5." },
+    ], flashcards:[
+      { q:"Why is dissolved O₂ dangerous in boiler water?", a:"Causes pitting corrosion. Removed by deaerator (thermal) and chemical scavengers (hydrazine/sodium sulphite)." },
+    ]
+  },
+  { id:"chem_fuel", icon:"⛽", title:"Fuel Chemistry",
+    desc:"Hydrocarbons, combustion equations, calorific value, sulphur content, CCAI index",
+    formulas:[
+      { label:"Stoichiometric AFR", eq:"AFR ≈ 14.5 kg air / kg fuel (diesel)", note:"Actual AFR > stoichiometric. Excess air 10–20% for marine diesels." },
+      { label:"Calorific Values", eq:"HFO: 40.5 MJ/kg  |  MDO: 42.7 MJ/kg  |  LNG: 50 MJ/kg", note:"Lower Calorific Value (LCV). Used for fuel consumption calculations." },
+    ], flashcards:[
+      { q:"CCAI — what does it indicate?", a:"Ignition quality of HFO. CCAI < 840: good ignition. > 870: poor ignition, rough running." },
+    ]
+  },
+]);
+
+setChapters("bt_draw","📏","Engineering Drawing & CAD",
+  "Orthographic projections, isometric drawing, AutoCAD, marine engineering drawings","Sem 1",[
+  { id:"draw_ortho", icon:"📐", title:"Orthographic Projection",
+    desc:"1st and 3rd angle projection, front/top/side views, dimensioning, tolerances",
+    formulas:[], flashcards:[
+      { q:"1st angle vs 3rd angle projection?", a:"1st angle: object between viewer and plane (Europe/India). 3rd angle: plane between viewer and object (USA/Japan)." },
+    ]
+  },
+  { id:"draw_iso", icon:"📦", title:"Isometric Drawing",
+    desc:"Isometric axes at 30°, isometric circles (ellipses), oblique and perspective views",
+    formulas:[], flashcards:[
+      { q:"Isometric axes angles?", a:"Three axes at 120° to each other; two at 30° to horizontal, one vertical." },
+    ]
+  },
+  { id:"draw_cad", icon:"💻", title:"AutoCAD Basics",
+    desc:"2D drafting commands, layers, blocks, dimensions, plotting, intro to 3D modelling",
+    formulas:[], flashcards:[
+      { q:"What is a block in AutoCAD?", a:"A named group of objects saved as a single entity for repeated use (e.g. valve symbol, bolt)." },
+    ]
+  },
+  { id:"draw_marine", icon:"🚢", title:"Marine Engineering Drawings",
+    desc:"P&ID diagrams, piping isometrics, shipyard drawings, weld symbols, BOMs",
+    formulas:[], flashcards:[
+      { q:"What does P&ID stand for?", a:"Piping and Instrumentation Diagram — shows piping, instruments, and equipment in a process system." },
+    ]
+  },
+]);
+
+setChapters("bt_workshop1","🔧","Engineering Workshop I",
+  "Fitting, welding, basic machining, measurement instruments","Sem 1",[
+  { id:"ws1_fitting", icon:"⚙️", title:"Fitting & Bench Work",
+    desc:"Hand tools, filing, drilling, tapping, reaming, limits and fits",
+    formulas:[
+      { label:"Tolerance", eq:"Tolerance = Upper Limit − Lower Limit", note:"Total permissible size variation." },
+      { label:"Clearance Fit", eq:"Clearance = Hole size − Shaft size  (always positive)", note:"Shaft smaller than hole. Used for bearings, bushes." },
+    ], flashcards:[
+      { q:"Purpose of reaming?", a:"To produce an accurately-sized, smooth hole after drilling." },
+    ]
+  },
+  { id:"ws1_welding", icon:"🔥", title:"Welding Basics",
+    desc:"Arc welding (SMAW), MIG/MAG, TIG, weld joints, defects, safety",
+    formulas:[
+      { label:"Heat Input", eq:"H = (V × I × 60) / (1000 × S)  kJ/mm", note:"V=voltage, I=current, S=travel speed(mm/min). Controls HAZ size." },
+    ], flashcards:[
+      { q:"What is undercutting?", a:"A groove melted into base metal at weld toe. Caused by excessive current or wrong angle." },
+    ]
+  },
+  { id:"ws1_machining", icon:"🔩", title:"Lathe & Drilling",
+    desc:"Lathe operations (turning, facing, threading), drill press, speeds and feeds",
+    formulas:[
+      { label:"Cutting Speed", eq:"N = (1000 × V) / (π × D)  rpm", note:"N=spindle speed, V=cutting speed(m/min), D=diameter(mm)." },
+    ], flashcards:[
+      { q:"What is the back rake angle?", a:"Angle of tool face from vertical. Positive rake reduces cutting force but weakens tool." },
+    ]
+  },
+  { id:"ws1_measure", icon:"📏", title:"Measurement Instruments",
+    desc:"Vernier caliper, micrometer, dial gauge, slip gauges, surface roughness",
+    formulas:[
+      { label:"Vernier Least Count", eq:"LC = 1 MSD − 1 VSD = S/n", note:"Typical: 0.02mm. Micrometer LC = 0.01mm." },
+    ], flashcards:[
+      { q:"Purpose of slip gauges?", a:"Precision end-standard blocks used to calibrate other measuring tools." },
+    ]
+  },
+]);
+
+setChapters("bt_maths2","📊","Engineering Mathematics II",
+  "Vector calculus, complex numbers, Laplace transforms, Fourier series","Sem 2",[
+  { id:"m2_laplace", icon:"ℒ", title:"Laplace Transforms",
+    desc:"Definition, standard transforms, inverse, convolution, solving ODEs with ICs",
+    formulas:[
+      { label:"Laplace Definition", eq:"ℒ{f(t)} = ∫₀^∞ e^(−st) f(t) dt", note:"Converts t-domain to s-domain. Used to solve ODEs algebraically." },
+      { label:"Key Pairs", eq:"ℒ{eᵃᵗ}=1/(s−a);  ℒ{sin ωt}=ω/(s²+ω²);  ℒ{t}=1/s²", note:"ℒ{f'(t)}=sF(s)−f(0) for derivatives." },
+    ], flashcards:[
+      { q:"ℒ{1} = ?", a:"1/s  (valid for s > 0)" },
+    ]
+  },
+  { id:"m2_fourier", icon:"🌊", title:"Fourier Series",
+    desc:"Periodic functions, Euler's formulae, half-range expansions, harmonic analysis",
+    formulas:[
+      { label:"Fourier Series", eq:"f(x) = a₀/2 + Σ[aₙcos(nπx/L) + bₙsin(nπx/L)]", note:"Periodic function expanded as sum of harmonics. L = half-period." },
+    ], flashcards:[
+      { q:"When does Fourier series contain only sine terms?", a:"When f(x) is an odd function: f(−x) = −f(x)." },
+    ]
+  },
+  { id:"m2_vector", icon:"→", title:"Vector Calculus",
+    desc:"Gradient, divergence, curl, line/surface/volume integrals, Green's/Stokes'/Divergence theorems",
+    formulas:[
+      { label:"Gradient", eq:"∇f = (∂f/∂x)î + (∂f/∂y)ĵ + (∂f/∂z)k̂", note:"Points in direction of steepest ascent." },
+      { label:"Gauss Divergence Theorem", eq:"∯ F·dA = ∭ ∇·F dV", note:"Surface flux integral equals volume integral of divergence." },
+    ], flashcards:[
+      { q:"What does zero curl mean?", a:"The vector field is irrotational — no rotation at that point." },
+    ]
+  },
+  { id:"m2_complex", icon:"ℂ", title:"Complex Numbers",
+    desc:"Argand plane, De Moivre's theorem, complex roots, analytic functions",
+    formulas:[
+      { label:"Euler's Formula", eq:"e^(iθ) = cosθ + i sinθ", note:"Fundamental link between exponential and trigonometric functions." },
+    ], flashcards:[
+      { q:"|z| for z = a+ib?", a:"|z| = √(a²+b²) — the modulus." },
+    ]
+  },
+]);
+
+setChapters("bt_mech","⚙️","Engineering Mechanics",
+  "Statics, dynamics, stress-strain, beams — foundation for structural and machinery analysis","Sem 2",[
+  { id:"mech_statics", icon:"⚖️", title:"Statics & Equilibrium",
+    desc:"Forces, moments, couples, FBDs, conditions of equilibrium, truss analysis",
+    formulas:[
+      { label:"Equilibrium Conditions", eq:"ΣFₓ=0,  ΣFᵧ=0,  ΣM=0", note:"For static equilibrium: net force and moment about any point must be zero." },
+    ], flashcards:[
+      { q:"What is a couple?", a:"Two equal, opposite, parallel forces. Net force=0, net moment≠0." },
+    ]
+  },
+  { id:"mech_dynamics", icon:"🏎️", title:"Dynamics",
+    desc:"SUVAT, projectile, circular motion, Newton's laws, work-energy, impulse-momentum",
+    formulas:[
+      { label:"SUVAT Equations", eq:"v=u+at;  s=ut+½at²;  v²=u²+2as", note:"Uniform acceleration. u=initial, v=final, a=acceleration, s=displacement." },
+      { label:"Centripetal Acceleration", eq:"a = v²/r = ω²r", note:"Directed toward centre. v=speed, r=radius, ω=angular velocity." },
+    ], flashcards:[
+      { q:"Impulse-momentum theorem?", a:"F×t = Δp = m(v−u). Force×time = change in momentum." },
+    ]
+  },
+  { id:"mech_stress", icon:"💪", title:"Stress & Strain",
+    desc:"Types of stress, Hooke's law, Poisson's ratio, thermal stress, shear",
+    formulas:[
+      { label:"Direct Stress", eq:"σ = F/A  [Pa or N/mm²]", note:"F=force(N), A=cross-section area(mm²). Normal stress." },
+      { label:"Hooke's Law", eq:"E = σ/ε  →  ε = σ/E", note:"E=Young's modulus. ε=strain (dimensionless). Valid in elastic range." },
+      { label:"Thermal Stress", eq:"σ_T = E × α × ΔT", note:"α=coefficient of linear expansion. Occurs when thermal expansion is restrained." },
+    ], flashcards:[
+      { q:"Factor of safety?", a:"FOS = Ultimate stress / Working stress. Typical marine structures: 3–4." },
+    ]
+  },
+  { id:"mech_beams", icon:"🏗️", title:"Beams — SF & BM",
+    desc:"Shear force and bending moment diagrams, bending stress, section modulus, deflection",
+    formulas:[
+      { label:"Bending Equation", eq:"M/I = σ/y = E/R", note:"M=moment, I=second moment of area, σ=stress at distance y from NA." },
+      { label:"Section Modulus", eq:"Z = I/y_max  →  σ_max = M/Z", note:"Higher Z = lower bending stress for same moment." },
+    ], flashcards:[
+      { q:"Where is bending stress maximum?", a:"At extreme fibres (top and bottom), farthest from the neutral axis." },
+    ]
+  },
+]);
+
+setChapters("bt_materials","🔬","Engineering Materials",
+  "Metals, alloys, heat treatment, corrosion, NDT — material selection for marine use","Sem 3",[
+  { id:"mat_metals", icon:"⚙️", title:"Metals & Alloys",
+    desc:"Crystal structure, iron-carbon diagram, steel grades, cast iron, aluminium, copper alloys",
+    formulas:[
+      { label:"UTS Definition", eq:"UTS = Max Load / Original Area  [MPa]", note:"Mild steel ≈ 400 MPa. High tensile steel ≈ 700+ MPa." },
+    ], flashcards:[
+      { q:"What is martensite?", a:"Very hard brittle phase of steel formed by rapid quenching. High hardness, low ductility." },
+      { q:"Why is cast iron brittle?", a:"High carbon (2–4%) forms graphite flakes acting as stress concentrators." },
+    ]
+  },
+  { id:"mat_heat", icon:"🔥", title:"Heat Treatment",
+    desc:"Annealing, normalising, hardening, tempering, case hardening, TTT diagrams",
+    formulas:[], flashcards:[
+      { q:"Purpose of tempering after hardening?", a:"Reduce brittleness by reheating to 150–650°C. Sacrifices some hardness for toughness." },
+      { q:"Annealing vs normalising?", a:"Annealing: slow furnace cool → max softness. Normalising: air cool → slightly harder/stronger." },
+    ]
+  },
+  { id:"mat_ndt", icon:"🔍", title:"NDT Methods",
+    desc:"Visual, dye-penetrant, MPI, ultrasonic, radiographic, eddy current testing",
+    formulas:[], flashcards:[
+      { q:"Which NDT detects sub-surface defects in non-magnetic materials?", a:"Ultrasonic Testing (UT) — uses sound waves to detect internal flaws." },
+    ]
+  },
+]);
+
+setChapters("bt_workshop2","🛠️","Engineering Workshop II",
+  "Advanced welding, pipe fitting, CNC machining, hydraulic & pneumatic systems","Sem 3",[
+  { id:"ws2_weld", icon:"🔥", title:"Advanced Welding",
+    desc:"TIG, MIG, submerged arc, WPS, welder qualification, PWHT",
+    formulas:[
+      { label:"Fillet Weld Throat", eq:"Throat = 0.707 × Leg size  (45° fillet)", note:"Minimum strength cross-section of a fillet weld." },
+    ], flashcards:[
+      { q:"What is PWHT?", a:"Post Weld Heat Treatment — stress-relief after welding to reduce residual stresses." },
+    ]
+  },
+  { id:"ws2_pipe", icon:"🔩", title:"Pipe Fitting",
+    desc:"Pipe materials, flanges, fittings, valves, threaded joints, pressure testing",
+    formulas:[
+      { label:"Pipe Velocity", eq:"v = Q / (π D²/4)  [m/s]", note:"Q=flow(m³/s), D=internal diameter(m). Design: sea water 1.5–2.5 m/s." },
+    ], flashcards:[
+      { q:"What is a spectacle blank?", a:"A plate with solid disc one side and ring the other — positively isolates a pipe." },
+    ]
+  },
+  { id:"ws2_cnc", icon:"💻", title:"CNC Machining",
+    desc:"G-codes, M-codes, CNC turning and milling, tool offsets, CAM introduction",
+    formulas:[], flashcards:[
+      { q:"What is G00?", a:"Rapid positioning — moves tool at maximum speed (no cutting)." },
+    ]
+  },
+]);
+
+setChapters("bt_strength","🏗️","Strength of Materials",
+  "Torsion, columns, thick cylinders, springs, pressure vessels — advanced stress analysis","Sem 3",[
+  { id:"str_torsion", icon:"🔄", title:"Torsion of Shafts",
+    desc:"Shear stress, angle of twist, power transmission, composite shafts, couplings",
+    formulas:[
+      { label:"Torsion Equation", eq:"T/J = τ/r = Gθ/L", note:"T=torque, J=polar moment, τ=shear stress, r=radius, G=shear modulus, θ=twist, L=length." },
+      { label:"Polar Moment — Solid", eq:"J = πD⁴/32", note:"Hollow shaft: J = π(D⁴−d⁴)/32." },
+      { label:"Power-Torque", eq:"P = 2πNT/60  [W]", note:"P=power, N=speed(rpm), T=torque(N·m). Used to size propulsion shafts." },
+    ], flashcards:[
+      { q:"Why is hollow shaft more efficient?", a:"Higher J/weight ratio — outer fibres carry most shear stress." },
+    ]
+  },
+  { id:"str_columns", icon:"⬆️", title:"Columns & Struts",
+    desc:"Euler's formula, slenderness ratio, effective length, Rankine's formula",
+    formulas:[
+      { label:"Euler's Crippling Load", eq:"P_cr = π²EI / Le²", note:"Le=effective length. Fixed-fixed: Le=L/2 (highest critical load)." },
+    ], flashcards:[
+      { q:"Effective length — fixed both ends?", a:"Le = L/2." },
+    ]
+  },
+  { id:"str_cylinders", icon:"⭕", title:"Thick Cylinders & Pressure Vessels",
+    desc:"Lame's equations, hoop/radial stress, compound cylinders, thin cylinder approximation",
+    formulas:[
+      { label:"Thin Cylinder Hoop Stress", eq:"σ_h = pd/(2t)  [MPa]", note:"Valid when d/t > 20. p=pressure, d=bore, t=wall thickness." },
+    ], flashcards:[
+      { q:"Where is hoop stress maximum in thick cylinder?", a:"At the inner radius." },
+    ]
+  },
+]);
+
+setChapters("bt_prog","💻","Programming & Computers",
+  "Python, algorithms, OOP, databases, version control, basic MATLAB","Sem 4",[
+  { id:"prog_python", icon:"🐍", title:"Python Basics",
+    desc:"Data types, operators, strings, lists, tuples, dictionaries, input/output",
+    formulas:[], flashcards:[
+      { q:"List vs tuple in Python?", a:"List is mutable (can change). Tuple is immutable. Tuples are faster for fixed data." },
+    ]
+  },
+  { id:"prog_control", icon:"🔀", title:"Control Flow & Functions",
+    desc:"if/elif/else, for/while loops, break/continue, functions, recursion, lambda",
+    formulas:[], flashcards:[
+      { q:"What is recursion?", a:"A function calling itself. Must have a base case to terminate." },
+    ]
+  },
+  { id:"prog_oop", icon:"🧩", title:"OOP & Modules",
+    desc:"Classes, objects, inheritance, polymorphism, standard library, file handling, numpy intro",
+    formulas:[], flashcards:[
+      { q:"What is polymorphism?", a:"Same method name works differently for different objects." },
+    ]
+  },
+  { id:"prog_db", icon:"🗄️", title:"Databases & SQL",
+    desc:"Relational databases, SQL commands, JOIN operations, normalisation",
+    formulas:[], flashcards:[
+      { q:"INNER JOIN vs LEFT JOIN?", a:"INNER: only matching rows. LEFT: all rows from left table plus matching from right." },
+    ]
+  },
+]);
+
+setChapters("bt_elec2","⚡","Electrical Engineering II",
+  "3-phase systems, electrical machines, switchgear, drives, protection","Sem 4",[
+  { id:"elec2_3ph", icon:"🔺", title:"3-Phase Systems",
+    desc:"Generation, star/delta connections, balanced loads, power measurement",
+    formulas:[
+      { label:"3-Phase Power", eq:"P = √3 × V_L × I_L × cosφ  [W]", note:"V_L=line voltage, I_L=line current, cosφ=power factor." },
+      { label:"Star Connection", eq:"V_L = √3 × V_P;  I_L = I_P", note:"Line voltage is √3 × phase voltage. Neutral carries zero current for balanced load." },
+    ], flashcards:[
+      { q:"Why 440V on ships?", a:"Reduces current for same power → smaller cables. Above 1kV requires extra safety. Below 440V means heavier cables." },
+    ]
+  },
+  { id:"elec2_machines", icon:"🔄", title:"Electrical Machines",
+    desc:"DC motors/generators, induction motors, synchronous machines, starting methods",
+    formulas:[
+      { label:"Synchronous Speed", eq:"N_s = 120f/P  [rpm]", note:"f=frequency(Hz), P=number of poles. 50Hz, 4-pole: N_s=1500 rpm." },
+      { label:"Motor Slip", eq:"s = (N_s − N) / N_s", note:"At full load: slip ≈ 3–5%. s=1 at standstill, s=0 at synchronous speed." },
+    ], flashcards:[
+      { q:"Why does a DC series motor not run without load?", a:"Very small current → very small back-EMF → speed increases dangerously (runaway)." },
+    ]
+  },
+  { id:"elec2_protection", icon:"🛡️", title:"Switchgear & Protection",
+    desc:"ACBs, MCCBs, fuses, overcurrent/earth-fault relays, discrimination",
+    formulas:[
+      { label:"Short Circuit Current", eq:"I_sc = V / Z_total  [A]", note:"Z_total = total impedance. Used to rate switchgear interrupting capacity." },
+    ], flashcards:[
+      { q:"Discrimination in protection?", a:"Nearest upstream device trips first without tripping the main breaker." },
+    ]
+  },
+  { id:"elec2_drives", icon:"⚙️", title:"Variable Speed Drives",
+    desc:"VFD/VSD, soft starters, energy saving, harmonics, power management",
+    formulas:[
+      { label:"Affinity Law — Power", eq:"P₂/P₁ = (N₂/N₁)³", note:"Power proportional to speed cubed. 20% speed reduction = 49% power saving." },
+    ], flashcards:[
+      { q:"Main advantage of VFD on pumps?", a:"P ∝ N³ (affinity law). Huge energy savings at reduced flow." },
+    ]
+  },
+]);
+
+setChapters("bt_fluid2","💧","Fluid Mechanics II",
+  "Turbulent flow, boundary layer, hydraulic turbines, compressible flow","Sem 4",[
+  { id:"fl2_darcy", icon:"🌀", title:"Turbulent Flow & Pipe Losses",
+    desc:"Reynolds number, Darcy-Weisbach, Moody chart, minor losses, pipe networks",
+    formulas:[
+      { label:"Darcy-Weisbach", eq:"h_f = f × (L/D) × (v²/2g)  [m]", note:"f=Darcy friction factor, L=length, D=diameter, v=velocity. Most accurate pipe friction formula." },
+    ], flashcards:[
+      { q:"Hydraulic diameter for non-circular duct?", a:"D_h = 4A/P where A=cross-section, P=wetted perimeter." },
+    ]
+  },
+  { id:"fl2_machines", icon:"⚙️", title:"Hydraulic Turbines & Pumps",
+    desc:"Pelton, Francis, Kaplan turbines; centrifugal pump performance, specific speed, cavitation",
+    formulas:[
+      { label:"Specific Speed", eq:"N_s = N√Q / H^(3/4)", note:"Classifies pump type. Low Ns=centrifugal, high Ns=axial." },
+    ], flashcards:[
+      { q:"What is cavitation in pumps?", a:"Vapour bubbles form when local pressure < vapour pressure. Bubble collapse erodes impeller." },
+    ]
+  },
+  { id:"fl2_compress", icon:"💨", title:"Compressible Flow",
+    desc:"Mach number, isentropic flow, normal shocks, nozzle design, choked flow",
+    formulas:[
+      { label:"Mach Number", eq:"Ma = v/a  where a = √(γRT)", note:"v=flow velocity, a=speed of sound, γ=1.4 air, R=287 J/kgK, T in Kelvin." },
+    ], flashcards:[
+      { q:"What happens at Ma=1 (choked flow)?", a:"Maximum mass flow through throat. Cannot increase by reducing downstream pressure." },
+    ]
+  },
+]);
+
+setChapters("bt_naval2","⚓","Naval Architecture II",
+  "Trim, damage stability, loading computers, sea loads, IMO intact stability criteria","Sem 4",[
+  { id:"nav2_trim", icon:"⚖️", title:"Trim & Longitudinal Stability",
+    desc:"BML, GML, moment to change trim, trim corrections for loading/discharging",
+    formulas:[
+      { label:"MCT1cm", eq:"MCT1cm = (GML × W) / (100 × L)  [t·m/cm]", note:"Moment to Change Trim 1cm. W=displacement, GML=longitudinal GM, L=LBP." },
+      { label:"Change of Trim", eq:"t = (w × d) / MCT1cm  [cm]", note:"w=mass(t), d=distance from CF(m)." },
+    ], flashcards:[
+      { q:"What is the centre of flotation?", a:"Centroid of the waterplane area. Ship rotates about this point when trimming." },
+    ]
+  },
+  { id:"nav2_damage", icon:"🚨", title:"Damage Stability",
+    desc:"Permeability, lost buoyancy method, added weight method, SOLAS criteria",
+    formulas:[
+      { label:"Permeability", eq:"μ = Volume available for flooding / Total volume", note:"Cargo holds ≈ 0.6–0.95, machinery spaces ≈ 0.85." },
+    ], flashcards:[
+      { q:"SOLAS damage stability (summary)?", a:"Must survive flooding of specified compartments with positive GM, minimum freeboard, no progressive flooding." },
+    ]
+  },
+  { id:"nav2_imo", icon:"📋", title:"IMO Intact Stability Criteria",
+    desc:"GZ curve requirements, area criteria, initial GM, weather criterion",
+    formulas:[
+      { label:"Area 0°–30° (IMO)", eq:"≥ 0.055 m·rad  (IMO A.749)", note:"Minimum righting energy. GZ ≥ 0.20m at 30°. Max GZ at 25° or above." },
+    ], flashcards:[
+      { q:"Minimum initial GM (general cargo)?", a:"GM ≥ 0.15m (IMO A.749)." },
+    ]
+  },
+]);
+
+setChapters("bt_seaman","⚓","Seamanship & STCW",
+  "STCW conventions, fire fighting, survival, first aid, watchkeeping","Sem 5",[
+  { id:"sea_stcw", icon:"📋", title:"STCW Convention",
+    desc:"STCW 1978 as amended, Manila 2010, certificates, rest hours, BST",
+    formulas:[], flashcards:[
+      { q:"STCW minimum rest hours?", a:"10 hours in any 24-hour period; 77 hours in any 7-day period." },
+      { q:"BST covers?", a:"Personal Survival, Fire Prevention & Fighting, Elementary First Aid, Personal Safety & Social Responsibilities." },
+    ]
+  },
+  { id:"sea_fire", icon:"🔥", title:"Fire Fighting",
+    desc:"Fire triangle, classes A/B/C/D/F, fixed/portable systems, SOLAS requirements",
+    formulas:[], flashcards:[
+      { q:"Classes of fire and agents?", a:"A(solids)=water/foam; B(liquids)=CO₂/foam; C(gas)=dry powder; D(metals)=dry sand; F(cooking)=wet chemical." },
+    ]
+  },
+  { id:"sea_survival", icon:"🛟", title:"Survival at Sea",
+    desc:"Lifeboats, liferafts, EPIRBs, SARTs, GMDSS, MOB, immersion suits, distress signals",
+    formulas:[], flashcards:[
+      { q:"EPIRB frequency?", a:"406 MHz (digital, Cospas-Sarsat). Also 121.5 MHz homing." },
+    ]
+  },
+  { id:"sea_firstaid", icon:"🏥", title:"Medical First Aid",
+    desc:"CPR, choking, fractures, burns, hypothermia, MFAG",
+    formulas:[], flashcards:[
+      { q:"CPR compression rate and depth?", a:"100–120 per minute, depth 5–6 cm. Ratio: 30 compressions : 2 breaths." },
+    ]
+  },
+]);
+
+setChapters("bt_sea_er","🔧","Engine Room Watchkeeping",
+  "Watch duties, rounds, ORB, SFOC, alarm handling, emergency response","Sem 5",[
+  { id:"er_watch", icon:"👁️", title:"Watchkeeping Duties",
+    desc:"STCW requirements, communication, handover, UMS procedures, rounds",
+    formulas:[], flashcards:[
+      { q:"Before taking over watch?", a:"Check machinery status, recent alarms, ongoing defects, standing orders, engineer-in-charge instructions." },
+    ]
+  },
+  { id:"er_logs", icon:"📓", title:"Logs & Records",
+    desc:"Official log book, ORB, engine log, fuel tracking, noon report",
+    formulas:[
+      { label:"SFOC", eq:"SFOC = Fuel consumed [g/h] / Power output [kW]  =  g/kWh", note:"Specific Fuel Oil Consumption. Typical slow-speed diesel: 155–180 g/kWh." },
+    ], flashcards:[
+      { q:"ORB Part I records?", a:"Fuel operations, bilge water disposal, sludge discharge, tank cleaning." },
+    ]
+  },
+  { id:"er_emergency", icon:"🚨", title:"Emergency Response",
+    desc:"Flooding, blackout recovery, main engine failure, fire in engine room",
+    formulas:[], flashcards:[
+      { q:"First action on engine room flooding?", a:"Alert bridge & chief engineer → identify/isolate source → start bilge pumps → emergency bilge if rapid flooding." },
+      { q:"Blackout — first priority?", a:"Restore power: start emergency generator, then bring main generators online. Maintain steering and navigation lights." },
+    ]
+  },
+]);
+
+setChapters("bt_sea_main","⚙️","Main Engine Operation",
+  "Main engine monitoring, performance, fuel management, sea passage operations","Sem 5",[
+  { id:"main_perf", icon:"📊", title:"Main Engine Performance",
+    desc:"P-V diagrams, indicator diagrams, SFOC monitoring, power balance, cylinder analysis",
+    formulas:[
+      { label:"IMEP from indicator diagram", eq:"IMEP = (Area of diagram × spring value) / (Length of diagram)  [bar]", note:"Indicated Mean Effective Pressure. Used to assess cylinder performance." },
+    ], flashcards:[
+      { q:"High exhaust temperature on one cylinder?", a:"Late injection timing, faulty injector, wrong air/fuel ratio, scavenge fire, leaking exhaust valve." },
+    ]
+  },
+  { id:"main_fuel", icon:"⛽", title:"Fuel System Management",
+    desc:"Fuel treatment (settling/purifying/heating), viscosity control, changeover, bunker management",
+    formulas:[], flashcards:[
+      { q:"Why is HFO preheated before injection?", a:"To reduce viscosity to 12–15 cSt for proper atomisation. Cold HFO is too thick to spray." },
+    ]
+  },
+]);
+
+setChapters("bt_sea_safe","🛡️","Safety Management — ISM & SOLAS",
+  "ISM Code, SMS, risk assessment, PTW, accident prevention","Sem 5",[
+  { id:"safe_ism", icon:"📋", title:"ISM Code & SMS",
+    desc:"ISM Code structure, SMS elements, DOC & SMC certificates, non-conformities, audits",
+    formulas:[], flashcards:[
+      { q:"Non-conformity under ISM?", a:"Observed situation where objective evidence shows an ISM Code requirement is not fulfilled." },
+    ]
+  },
+  { id:"safe_ptw", icon:"📝", title:"Permit to Work",
+    desc:"Hot work PTW, enclosed space entry, electrical isolation, LOTO",
+    formulas:[], flashcards:[
+      { q:"Gas tests before enclosed space entry?", a:"O₂ ≥ 20.9%, flammable gas < 1% LEL, H₂S < 10 ppm, CO < 25 ppm." },
+    ]
+  },
+  { id:"safe_solas", icon:"🚢", title:"SOLAS Key Chapters",
+    desc:"SOLAS chapters relevant to machinery, fire, LSA, radio, surveys",
+    formulas:[], flashcards:[
+      { q:"SOLAS Chapter II-1?", a:"Construction — subdivision, stability, machinery and electrical installations." },
+      { q:"SOLAS Chapter II-2?", a:"Fire protection, detection, and extinction." },
+    ]
+  },
+]);
+
+setChapters("bt_sea_marpol","🌊","MARPOL & Environment",
+  "MARPOL Annexes I/II/IV/V/VI, ORB, pollution response, BWM Convention","Sem 5",[
+  { id:"marpol_ann1", icon:"🛢️", title:"MARPOL Annex I — Oil",
+    desc:"Oil discharge criteria, ORB, IOPP certificate, OWS 15ppm, bilge management",
+    formulas:[
+      { label:"Max Discharge Rate", eq:"< 30 litres/nautical mile (outside special areas)", note:"OWS must achieve 15 ppm effluent. Zero discharge in special areas." },
+    ], flashcards:[
+      { q:"MARPOL Annex I special areas?", a:"Mediterranean, Baltic, Black Sea, Red Sea, Gulf of Aden, Antarctic, NW European Waters." },
+    ]
+  },
+  { id:"marpol_ann6", icon:"💨", title:"MARPOL Annex VI — Air Pollution",
+    desc:"SOx SECA/global cap, NOx tiers, EEDI, CII, SEEMP, ozone depletion",
+    formulas:[
+      { label:"Global Sulphur Cap (2020)", eq:"Max 0.50% m/m globally;  0.10% m/m in ECAs", note:"ECA = Emission Control Area: Baltic, North Sea, North America, US Caribbean." },
+    ], flashcards:[
+      { q:"What does CII measure?", a:"Carbon Intensity Indicator — CO₂ per tonne-mile. Annual operational rating A–E." },
+    ]
+  },
+  { id:"marpol_bwm", icon:"🧫", title:"Ballast Water Management",
+    desc:"BWM Convention 2004, D-1 exchange, D-2 treatment standard, BWMS types",
+    formulas:[], flashcards:[
+      { q:"BWM D-2 standard?", a:"< 10 viable organisms/m³ (>50μm); < 10/mL (10–50μm); indicator microbes below WHO thresholds." },
+    ]
+  },
+]);
+
+setChapters("bt_sea_stp","🚢","Port Procedures & PSC",
+  "PSC inspections, ISPS Code, port entry, voyage planning, COLREGS","Sem 5",[
+  { id:"stp_psc", icon:"🔍", title:"Port State Control",
+    desc:"PSC MOU regions, inspection types, deficiencies, detention criteria, THETIS",
+    formulas:[], flashcards:[
+      { q:"Grounds for detention by PSC?", a:"Deficiencies posing danger to safety, health or environment that cannot be rectified in port." },
+    ]
+  },
+  { id:"stp_isps", icon:"🔐", title:"ISPS Code",
+    desc:"Security levels 1/2/3, Ship Security Plan, SSO duties, CSO, PFSO, drills",
+    formulas:[], flashcards:[
+      { q:"Security Level 2 means?", a:"Heightened risk of security incident. Additional protective measures maintained." },
+    ]
+  },
+  { id:"stp_voyage", icon:"🗺️", title:"Voyage Planning",
+    desc:"COLREGS, voyage plan stages, ECDIS, waypoints, TRS avoidance",
+    formulas:[], flashcards:[
+      { q:"4 stages of voyage planning (SOLAS V/34)?", a:"Appraisal → Planning → Execution → Monitoring." },
+    ]
+  },
+]);
+
+setChapters("bt_sea_maint","🔧","Ship Maintenance Planning",
+  "PMS, class surveys, condition monitoring, defect management, RCA","Sem 6",[
+  { id:"maint_pms", icon:"📋", title:"Planned Maintenance System",
+    desc:"PMS structure, job cards, maintenance schedules, history records, defect reporting",
+    formulas:[], flashcards:[
+      { q:"Condition-based maintenance (CBM)?", a:"Maintenance based on actual equipment condition (via vibration/oil analysis) rather than fixed intervals." },
+    ]
+  },
+  { id:"maint_class", icon:"🏅", title:"Classification Surveys",
+    desc:"Continuous Survey Machinery, annual/intermediate/renewal surveys, alternative compliance",
+    formulas:[], flashcards:[
+      { q:"Special Survey (SS)?", a:"Comprehensive Class renewal every 5 years. Covers hull, machinery, boilers, electrical systems." },
+    ]
+  },
+  { id:"maint_rca", icon:"🔍", title:"Defect Management & Root Cause Analysis",
+    desc:"Defect reporting, FRACAS, 5-Why analysis, fishbone diagram, corrective actions",
+    formulas:[], flashcards:[
+      { q:"5-Why method?", a:"Repeatedly ask 'why?' (typically 5 times) until the root cause of a failure is identified." },
+    ]
+  },
+]);
+
+setChapters("bt_diesel2","🔧","Marine Diesel Engine II",
+  "4-stroke engines, governor, propulsion shafting, controllable pitch propellers","Sem 6",[
+  { id:"d2_4stroke", icon:"⚙️", title:"4-Stroke Engines",
+    desc:"Medium and high-speed diesel, valve timing, camshaft, genset engines, A/E comparison with 2-stroke",
+    formulas:[
+      { label:"4-Stroke Power", eq:"P = (BMEP × L × A × N) / (2 × 0.6)  [kW]", note:"Divide by 2 — power stroke every 2 revolutions. BMEP in bar." },
+    ], flashcards:[
+      { q:"Why do 4-stroke engines have camshafts?", a:"To precisely time valve opening/closing and fuel injection relative to crankshaft position." },
+    ]
+  },
+  { id:"d2_governor", icon:"🎛️", title:"Governor & Fuel Control",
+    desc:"Mechanical governor, electronic governor, PLC, speed droop, load sharing",
+    formulas:[
+      { label:"Speed Droop", eq:"Droop = (No-load speed − Full-load speed) / No-load speed × 100%", note:"Typical: 4–6%. Required for stable parallel generator operation." },
+    ], flashcards:[
+      { q:"Why is droop required for parallel generators?", a:"Ensures stable load sharing. Zero droop would cause one generator to take all load." },
+    ]
+  },
+  { id:"d2_shafting", icon:"🔩", title:"Propulsion Shafting",
+    desc:"Intermediate shafts, thrust block, stern tube, shaft alignment, critical speed",
+    formulas:[
+      { label:"Power-Torque", eq:"T = P × 60 / (2π × N)  [N·m]", note:"P=power(W), N=speed(rpm). Determines shaft diameter sizing." },
+    ], flashcards:[
+      { q:"Purpose of the thrust block?", a:"Transmits propeller thrust to the ship's hull structure." },
+    ]
+  },
+]);
+
+setChapters("bt_aux2","⚙️","Auxiliary Machinery II",
+  "Steering gear, deck machinery, HVAC, bilge and ballast systems","Sem 6",[
+  { id:"aux2_steering", icon:"🎯", title:"Steering Gear",
+    desc:"Hydraulic steering (ram type, rotary vane), SOLAS requirements, emergency steering",
+    formulas:[
+      { label:"SOLAS Rudder Swing Time", eq:"35° one side → 35° other side in ≤ 28 seconds", note:"At max continuous service speed, main steering gear. Emergency: 15° each side in 60s at half speed." },
+    ], flashcards:[
+      { q:"Emergency steering drill frequency?", a:"Every 3 months. Record in official log book." },
+    ]
+  },
+  { id:"aux2_deck", icon:"⛓️", title:"Deck Machinery",
+    desc:"Windlasses, mooring winches, capstans, hatch covers, wire ropes, SWL",
+    formulas:[
+      { label:"Wire Rope SWL (approx)", eq:"SWL ≈ d² × 8 / 10  tonnes  (d in mm)", note:"Actual SWL from manufacturer certificate. Safety factor typically 5:1." },
+    ], flashcards:[
+      { q:"When to condemn wire rope?", a:"Broken wires > 10% in one lay length, kinks, birdcaging, corrosion reducing diameter > 10%." },
+    ]
+  },
+  { id:"aux2_hvac", icon:"❄️", title:"HVAC Systems",
+    desc:"Air handling units, psychrometrics, cooling loads, chilled water, accommodation AC",
+    formulas:[
+      { label:"Sensible Heat Load", eq:"Q_s = m_air × C_p × ΔT  [kW]", note:"C_p=1.006 kJ/kgK for air. Used to size AHU cooling capacity." },
+    ], flashcards:[
+      { q:"Dew point definition?", a:"Temperature at which air must be cooled for water vapour to condense (RH = 100%)." },
+    ]
+  },
+]);
+
+setChapters("bt_elec3","⚡","Electrical Engineering III",
+  "Power electronics, electric propulsion, SCADA, automation, HV systems","Sem 5",[
+  { id:"elec3_power_e", icon:"🔌", title:"Power Electronics",
+    desc:"Diodes, thyristors, IGBTs, rectifiers, inverters, choppers, converters",
+    formulas:[
+      { label:"Full-Wave Rectifier Output", eq:"V_dc = 2V_m / π  ≈ 0.637 V_m", note:"V_m = peak voltage. Used in battery chargers, excitation systems." },
+    ], flashcards:[
+      { q:"Why IGBTs preferred over SCRs for VFDs?", a:"IGBTs are fully controllable (gate turn-off). SCRs need external commutation to turn off." },
+    ]
+  },
+  { id:"elec3_ep", icon:"🚢", title:"Electric Propulsion",
+    desc:"Diesel-electric, pod drives, shaft generators, hybrid systems, power management",
+    formulas:[], flashcards:[
+      { q:"Advantage of electric propulsion for cruise ships?", a:"Flexible layout (no shaft line), better efficiency at variable speeds, lower noise, redundancy." },
+    ]
+  },
+  { id:"elec3_scada", icon:"🖥️", title:"SCADA & Ship Automation",
+    desc:"SCADA architecture, alarm management, historian, OPC, integrated bridge/ER automation",
+    formulas:[], flashcards:[
+      { q:"What is SCADA?", a:"Supervisory Control And Data Acquisition — monitors and controls industrial processes remotely." },
+    ]
+  },
+]);
+
+setChapters("bt_control","🎛️","Automatic Control Systems",
+  "Control theory, PID, sensors, pneumatic/hydraulic controls, PLCs, automation","Sem 6",[
+  { id:"ctrl_theory", icon:"📈", title:"Control Theory",
+    desc:"Open/closed loop, transfer functions, stability, Bode plots, Nyquist",
+    formulas:[
+      { label:"Transfer Function", eq:"G(s) = Output(s) / Input(s)  (zero initial conditions)", note:"Laplace domain ratio. Poles determine stability." },
+      { label:"PID Control", eq:"u(t) = Kp·e + Ki·∫e dt + Kd·(de/dt)", note:"Kp=proportional, Ki=integral (eliminates offset), Kd=derivative (reduces overshoot)." },
+    ], flashcards:[
+      { q:"Steady-state error with P-control only?", a:"Non-zero offset for step disturbances. Adding integral action eliminates steady-state error." },
+    ]
+  },
+  { id:"ctrl_sensors", icon:"📡", title:"Sensors & Transducers",
+    desc:"RTD, thermocouple, pressure (Bourdon, strain gauge), flow, level sensors",
+    formulas:[
+      { label:"Pt100 RTD", eq:"R_T = R₀(1 + αT)  ≈  100(1 + 0.00385T)  [Ω]", note:"R₀=100Ω at 0°C. α≈3.85×10⁻³/°C for platinum." },
+    ], flashcards:[
+      { q:"Thermocouple vs RTD?", a:"TC: wider range, faster, needs cold junction compensation. RTD: more accurate, stable, narrower range." },
+    ]
+  },
+  { id:"ctrl_plc", icon:"💻", title:"PLCs & Automation",
+    desc:"PLC structure, ladder logic, function blocks, SCADA integration, DCS, fail-safe",
+    formulas:[], flashcards:[
+      { q:"PLC scan cycle?", a:"Read inputs → Execute program → Update outputs → Housekeeping. Cycle time: 1–100ms." },
+    ]
+  },
+]);
+
+setChapters("bt_propulsion","🚢","Propulsion Engineering",
+  "Propeller theory, thrust, cavitation, CPP, azimuth thrusters, engine matching","Sem 6",[
+  { id:"prop_theory", icon:"🌀", title:"Propeller Theory",
+    desc:"Thrust, torque, efficiency, pitch, slip, wake fraction, propeller curves, Kt-Kq-J",
+    formulas:[
+      { label:"Thrust Coefficient", eq:"K_T = T / (ρ n² D⁴)", note:"T=thrust(N), ρ=density(kg/m³), n=rev/s, D=diameter(m)." },
+      { label:"Advance Coefficient", eq:"J = V_a / (n × D)", note:"V_a=speed of advance(m/s). Used with Kt-Kq-J open water charts." },
+    ], flashcards:[
+      { q:"What is propeller slip?", a:"Difference between theoretical pitch advance and actual ship speed. Apparent slip includes wake." },
+    ]
+  },
+  { id:"prop_cavitation", icon:"💧", title:"Cavitation",
+    desc:"Types, suction-side erosion, noise, NPSH criterion, propeller selection",
+    formulas:[
+      { label:"Cavitation Number", eq:"σ = (p₀ − p_v) / (½ρV²)", note:"p₀=ambient pressure, p_v=vapour pressure. Cavitation when σ drops below critical value." },
+    ], flashcards:[
+      { q:"What causes propeller erosion from cavitation?", a:"Bubble collapse near metal generates micro-jets (~500 m/s) removing material." },
+    ]
+  },
+  { id:"prop_cpp", icon:"⚙️", title:"CPP & Thrusters",
+    desc:"Controllable pitch propeller mechanism, CRP drives, azimuth thrusters, bow thrusters",
+    formulas:[], flashcards:[
+      { q:"Advantage of CPP over FPP?", a:"Engine runs at constant RPM while speed varies. Better part-load efficiency, no reversing gear needed." },
+    ]
+  },
+]);
+
+setChapters("bt_hv","⚡","High Voltage Engineering",
+  "HV safety, switchgear, protection, earthing, shipboard HV systems","Sem 7",[
+  { id:"hv_safety", icon:"⚠️", title:"HV Safety & Earthing",
+    desc:"HV zones, safe distances, insulation testing, LOTO for HV, protective equipment",
+    formulas:[
+      { label:"Insulation Resistance Test", eq:"IR ≥ 1 MΩ/kV of system voltage (minimum)", note:"Measured with megger at 1kV. Polarisation Index = IR(10min)/IR(1min) ≥ 1.5." },
+    ], flashcards:[
+      { q:"Purpose of HV earthing switch?", a:"Connects HV busbar/cable to earth before work, discharging capacitive stored energy." },
+    ]
+  },
+  { id:"hv_swgr", icon:"🔲", title:"HV Switchgear",
+    desc:"Vacuum circuit breakers, SF6 breakers, bus arrangements, interlocks, trip testing",
+    formulas:[
+      { label:"Short Circuit MVA", eq:"MVA_sc = √3 × V_L × I_sc / 10⁶", note:"Used to rate switchgear interrupting capacity." },
+    ], flashcards:[
+      { q:"Why vacuum CBs for shipboard HV?", a:"Compact, low maintenance, no SF6 environmental concerns, fast arc extinguishing." },
+    ]
+  },
+  { id:"hv_protection", icon:"🛡️", title:"HV Protection",
+    desc:"IDMT overcurrent relays, differential, earth fault, distance protection, backup",
+    formulas:[], flashcards:[
+      { q:"Primary vs backup protection?", a:"Primary: fastest, closest to fault. Backup: slower, further away, operates if primary fails." },
+    ]
+  },
+]);
+
+setChapters("bt_mep","🌿","Marine Environmental Protection",
+  "Pollution prevention, clean shipping, energy efficiency, waste management","Sem 7",[
+  { id:"mep_regs", icon:"📋", title:"IMO Environmental Regulations",
+    desc:"MARPOL overview, OPRC, AFS Convention, BWM, biofouling management",
+    formulas:[], flashcards:[
+      { q:"AFS Convention purpose?", a:"Prohibits organotin (TBT) compounds in anti-fouling paint. Ships must have AFS certificate." },
+    ]
+  },
+  { id:"mep_energy", icon:"⚡", title:"Energy Efficiency & Carbon",
+    desc:"EEDI, EEXI, CII, SEEMP Parts I/II/III, carbon intensity ratings",
+    formulas:[
+      { label:"CII", eq:"CII = CO₂ emissions [g] / (DWT × Distance [nm])", note:"Annual operational carbon intensity. A=best, E=worst. 3 years E → corrective action plan." },
+    ], flashcards:[
+      { q:"EEXI vs CII?", a:"EEXI: technical efficiency index for existing ships (one-time). CII: operational carbon intensity, reported annually." },
+    ]
+  },
+  { id:"mep_waste", icon:"♻️", title:"Waste Management",
+    desc:"Garbage Management Plan, garbage record book, waste types, reception facilities",
+    formulas:[], flashcards:[
+      { q:"Can food waste be discharged?", a:"Only if comminuted/ground, 25nm+ offshore, and not in special areas. Unprocessed: 12nm+." },
+    ]
+  },
+]);
+
+setChapters("bt_env","🌱","Environment & Safety Management",
+  "Environmental management systems, ISO 14001, climate change, HSSEQ on board","Sem 7",[
+  { id:"env_ems", icon:"🌍", title:"Environmental Management Systems",
+    desc:"ISO 14001, environmental policy, aspect/impact register, objectives, monitoring",
+    formulas:[], flashcards:[
+      { q:"Environmental aspect vs impact?", a:"Aspect: element interacting with environment (e.g. combustion). Impact: change to environment (e.g. SOx emissions)." },
+    ]
+  },
+  { id:"env_climate", icon:"🌡️", title:"Climate Change & Shipping",
+    desc:"GHG emissions, IMO 2050 targets, alternative fuels, LNG, ammonia, hydrogen",
+    formulas:[
+      { label:"CO₂ Emission Factor HFO", eq:"3.114 tonnes CO₂ per tonne HFO burned", note:"MDO: 3.206 t/t. LNG: 2.75 t/t. IPCC/IMO factors." },
+    ], flashcards:[
+      { q:"IMO 2050 GHG target?", a:"Net-zero GHG emissions from international shipping by or around 2050 (revised strategy 2023)." },
+    ]
+  },
+]);
+
+setChapters("bt_ndt","🔍","Non-Destructive Testing",
+  "Visual, DPT, MPI, ultrasonic, radiographic, eddy current — theory and practice","Sem 7",[
+  { id:"ndt_dpt", icon:"👁️", title:"Visual & Dye Penetrant Testing",
+    desc:"Direct/remote visual inspection, DPT procedure, sensitivity, surface preparation",
+    formulas:[], flashcards:[
+      { q:"DPT procedure steps?", a:"1.Clean 2.Apply penetrant (dwell 10-15min) 3.Remove excess 4.Apply developer 5.Inspect under UV/white light 6.Post-clean." },
+    ]
+  },
+  { id:"ndt_ut", icon:"🔊", title:"Ultrasonic Testing",
+    desc:"A-scan, pulse-echo technique, probe types, flaw sizing, thickness measurement",
+    formulas:[
+      { label:"Pulse Travel Time", eq:"d = (v × t) / 2", note:"d=defect depth, v=velocity in material, t=travel time. Divide by 2 for pulse-echo (two-way)." },
+    ], flashcards:[
+      { q:"Speed of sound in steel?", a:"~5920 m/s (longitudinal), ~3250 m/s (shear waves)." },
+    ]
+  },
+  { id:"ndt_mpi", icon:"🧲", title:"MPI & Radiography",
+    desc:"MPI theory, DC vs AC, yoke/coil methods, fluorescent particles, X-ray and gamma",
+    formulas:[], flashcards:[
+      { q:"Why AC for surface cracks in MPI?", a:"AC creates skin effect — flux concentrated at surface. Better for fine surface cracks." },
+    ]
+  },
+]);
+
+setChapters("bt_naval3","🚢","Naval Architecture III",
+  "Ship resistance, propulsion coefficients, seakeeping, manoeuvring","Sem 7",[
+  { id:"nav3_resist", icon:"🌊", title:"Ship Resistance",
+    desc:"Frictional resistance (ITTC), wave-making, form factor, effective power",
+    formulas:[
+      { label:"ITTC-57 Friction Coefficient", eq:"C_F = 0.075 / (log₁₀Re − 2)²", note:"Re=V·L/ν. Baseline for towing tank extrapolation to full scale." },
+      { label:"Effective Power", eq:"P_E = R_T × V  [W]", note:"R_T=total resistance(N), V=ship speed(m/s)." },
+    ], flashcards:[
+      { q:"Froude number significance?", a:"Fr=V/√(gL). Fr>0.5: wave-making dominates. Fr<0.3: friction dominates. Ships: Fr=0.15–0.30." },
+    ]
+  },
+  { id:"nav3_seakeep", icon:"〰️", title:"Seakeeping",
+    desc:"Ship motions in waves (6 DOF), natural periods, rolling, parametric rolling",
+    formulas:[
+      { label:"Natural Roll Period", eq:"T_R = 2π × k / √(GM × g)", note:"k=radius of gyration ≈ 0.38B. Synchronous rolling: T_wave = T_R." },
+    ], flashcards:[
+      { q:"How to avoid parametric rolling?", a:"Change course and/or speed to move away from resonant encounter frequency." },
+    ]
+  },
+  { id:"nav3_manoeuvre", icon:"🎯", title:"Manoeuvring",
+    desc:"Turning circle, tactical diameter, advance, stopping distances, IMO standards",
+    formulas:[
+      { label:"IMO Turning Ability", eq:"Tactical Diameter ≤ 5 × L  (IMO A.751)", note:"At 35° rudder. Advance ≤ 4.5L at 90° change of heading." },
+    ], flashcards:[
+      { q:"Stopping distance IMO?", a:"Ship head-reach ≤ 15 ship lengths from initial speed." },
+    ]
+  },
+]);
+
+setChapters("bt_maint2","🔧","Condition Monitoring",
+  "Vibration analysis, oil analysis, thermography, bearing diagnostics, reliability","Sem 7",[
+  { id:"maint2_vib", icon:"📊", title:"Vibration Analysis",
+    desc:"Vibration signatures, accelerometers, FFT spectrum, bearing frequencies, unbalance",
+    formulas:[
+      { label:"ISO 10816 Class III Machinery", eq:"Good: < 2.8 mm/s RMS  |  Alarm: > 7.1 mm/s  |  Trip: > 11 mm/s", note:"Overall vibration velocity. ISO 10816-3 general machinery." },
+    ], flashcards:[
+      { q:"Large 1× component in FFT?", a:"Unbalance — rotating mass eccentricity. Dominant at running speed frequency." },
+    ]
+  },
+  { id:"maint2_oil", icon:"🔬", title:"Oil Analysis",
+    desc:"Wear particle analysis, viscosity, TAN/TBN, water contamination, spectrometric analysis",
+    formulas:[
+      { label:"TBN Condemnation", eq:"TBN: new HFO cylinder oil ≈ 70 BN. Condemn when < 25–30% of new value.", note:"TBN = Total Base Number (mg KOH/g). Indicates acid-neutralising capacity remaining." },
+    ], flashcards:[
+      { q:"Iron particles in engine oil?", a:"Wear of ferrous components. Rising trend indicates accelerating wear." },
+    ]
+  },
+  { id:"maint2_thermo", icon:"🌡️", title:"Thermography",
+    desc:"IR thermography for electrical panels, bearings, steam traps, insulation",
+    formulas:[], flashcards:[
+      { q:"When to use thermography on switchboard?", a:"Annually minimum, and after modifications, to detect loose connections and overloaded circuits." },
+    ]
+  },
+]);
+
+setChapters("bt_casualty","🚨","Ship Casualty Investigation",
+  "IMO Casualty Code, flag state investigation, human factors, near-miss reporting","Sem 7",[
+  { id:"cas_process", icon:"📋", title:"Investigation Process",
+    desc:"IMO MSC.255(84) — Casualty Investigation Code, flag state obligations",
+    formulas:[], flashcards:[
+      { q:"Purpose of casualty investigation (IMO)?", a:"To prevent recurrence by finding contributing factors — NOT to apportion blame or determine liability." },
+      { q:"Very serious marine casualty definition?", a:"Loss of ship, loss of life, or severe pollution." },
+    ]
+  },
+  { id:"cas_human", icon:"🧠", title:"Human Factors",
+    desc:"HFACS, Swiss cheese model, situational awareness, fatigue, CRM",
+    formulas:[], flashcards:[
+      { q:"Swiss cheese model?", a:"Multiple defences each with holes (failures). When holes align, accident trajectory passes through all — accident occurs." },
+    ]
+  },
+]);
+
+setChapters("bt_altfuel2","🌿","Alternative Fuels",
+  "LNG, methanol, ammonia, hydrogen as marine fuels — IGF Code, safety, storage","Sem 7",[
+  { id:"alt_lng", icon:"🧊", title:"LNG as Marine Fuel",
+    desc:"LNG properties, storage (type C/membrane), BOG management, bunkering, IGF Code",
+    formulas:[
+      { label:"LNG vs HFO Energy Density", eq:"LNG: ~23 MJ/L  |  HFO: ~34 MJ/L", note:"LNG lower volumetric energy density — larger tanks needed. Higher specific energy (50 vs 40 MJ/kg)." },
+    ], flashcards:[
+      { q:"Main advantage of LNG vs HFO?", a:"~20% less CO₂, ~90% less SOx, ~80% less NOx, ~35% less PM. Meets Tier III NOx without SCR." },
+    ]
+  },
+  { id:"alt_ammonia", icon:"🧪", title:"Ammonia & Hydrogen",
+    desc:"Zero-carbon fuels, storage, combustion challenges, toxicity, production, infrastructure",
+    formulas:[
+      { label:"Ammonia Energy", eq:"NH₃: ~12.7 MJ/L  |  No CO₂ when burned: N₂ + H₂O products", note:"Toxic (TLV-TWA = 25 ppm). Narrow flammability range. Energy density ~1/3 of HFO." },
+    ], flashcards:[
+      { q:"Why green ammonia is important?", a:"Zero carbon when produced by electrolysis with renewable electricity. Key for IMO 2050 targets." },
+    ]
+  },
+]);
+
+setChapters("bt_digitech","💻","Digital Technologies",
+  "ECDIS, AIS, VDR, integrated bridge, cybersecurity, Industry 4.0, digital twins","Sem 8",[
+  { id:"dt_ecdis", icon:"🗺️", title:"ECDIS & Navigation",
+    desc:"ECDIS vs paper chart requirements, ENC, RCDS, route planning, GNSS",
+    formulas:[], flashcards:[
+      { q:"When does ECDIS replace paper charts?", a:"Two independent ECDIS with up-to-date ENCs AND paper chart backup as Type Approved alternative." },
+    ]
+  },
+  { id:"dt_cyber", icon:"🔐", title:"Cybersecurity",
+    desc:"IMO MSC-FAL.1/Circ.3, cyber risk in SMS, vulnerability assessment, incident response",
+    formulas:[], flashcards:[
+      { q:"IMO cyber risk requirement?", a:"From 2021: cyber risk management integrated into SMS under ISM Code." },
+    ]
+  },
+  { id:"dt_industry4", icon:"🤖", title:"Industry 4.0 & Digital Twins",
+    desc:"IoT sensors, predictive maintenance, AI/ML applications, digital twin concept",
+    formulas:[], flashcards:[
+      { q:"What is a digital twin?", a:"Real-time digital replica of a physical asset using sensor data to monitor, simulate and predict performance." },
+    ]
+  },
+]);
+
+setChapters("bt_drydock","🏭","Drydocking & Ship Repair",
+  "Drydocking procedures, classification surveys, hull repairs, special survey","Sem 8",[
+  { id:"dry_proc", icon:"🚢", title:"Drydocking Procedures",
+    desc:"Pre-drydock survey, block positioning, flooding/pumping sequence, stability during drydock",
+    formulas:[], flashcards:[
+      { q:"Critical instant during drydocking?", a:"When keel just touches blocks. Transverse stability is critical before full support." },
+    ]
+  },
+  { id:"dry_class", icon:"📋", title:"Classification Surveys",
+    desc:"Class notations, survey schedules, docking/special surveys, surveyors, certificates",
+    formulas:[], flashcards:[
+      { q:"What is a Special Survey?", a:"Comprehensive Class renewal every 5 years. Covers hull, machinery, boilers, electrical." },
+    ]
+  },
+  { id:"dry_hull", icon:"🔧", title:"Hull Repairs & Coating",
+    desc:"Plate renewals, grit blasting, paint systems, UT thickness gauging, weld repairs",
+    formulas:[
+      { label:"Max Corrosion Allowance", eq:"Min acceptable thickness = t_original × (1 − allowance)", note:"Class rules define max diminution — typically 20% of original thickness." },
+    ], flashcards:[
+      { q:"Grit blast standard for underwater coating?", a:"Sa 2½ (near-white metal). Applied within 4 hours of blasting." },
+    ]
+  },
+]);
+
+setChapters("bt_mgmt","📊","Marine Engineering Management",
+  "Leadership, MLC 2006, budgeting, procurement, crew management, port state","Sem 8",[
+  { id:"mgmt_lead", icon:"👥", title:"Leadership & Team Management",
+    desc:"Leadership styles, conflict resolution, communication, multicultural teams",
+    formulas:[], flashcards:[
+      { q:"Situational leadership concept?", a:"Adapt style to follower readiness: directing → coaching → supporting → delegating." },
+    ]
+  },
+  { id:"mgmt_mlc", icon:"📋", title:"MLC 2006",
+    desc:"Seafarer rights: working hours, accommodation, food, medical care, repatriation, SEA",
+    formulas:[], flashcards:[
+      { q:"MLC 2006 maximum work hours?", a:"Max 14 hours in any 24-hour period; max 72 hours in any 7-day period." },
+      { q:"What is a SEA?", a:"Seafarer Employment Agreement — written contract defining terms of service, wages, repatriation rights." },
+    ]
+  },
+  { id:"mgmt_budget", icon:"💰", title:"Budget & Procurement",
+    desc:"Opex/Capex, cost centres, tendering, spare parts management, technical purchasing",
+    formulas:[
+      { label:"Typical Opex Breakdown", eq:"Crew ~40%  |  Maintenance ~25%  |  Stores/spares ~15%  |  Insurance ~10%", note:"Varies by ship type, age, flag. Use for budget estimation and control." },
+    ], flashcards:[
+      { q:"Planned vs breakdown maintenance?", a:"Planned: lower cost, reduces downtime, emergency expenses, class deficiencies." },
+    ]
+  },
+]);
+
+setChapters("bt_oral_prep","🎓","MMD Oral Exam Preparation",
+  "2/E and C/E certificate orals — systems, regulations, fault diagnosis, strategy","Sem 8",[
+  { id:"oral_2nd", icon:"⭐", title:"Second Engineer Orals",
+    desc:"MEO Class II — main engine, aux machinery, electrical, MARPOL, ISM, stability",
+    formulas:[], flashcards:[
+      { q:"Flash point of HFO?", a:"Minimum 60°C (SOLAS). Typical HFO: 65–100°C. Distillate: 60°C minimum." },
+      { q:"How to deal with crankcase explosion?", a:"Emergency stop → do NOT open crankcase for 20 min → ventilate → report → investigate cause (hot bearing, piston seizure)." },
+      { q:"Causes of a scavenge fire?", a:"Oil/carbon deposits in scavenge space ignited by hot gas blowpast. Signs: high scavenge temperature, smoke from drains." },
+    ]
+  },
+  { id:"oral_chief", icon:"🌟", title:"Chief Engineer Orals",
+    desc:"MEO Class I — advanced engineering, management, economic operation, Class requirements",
+    formulas:[], flashcards:[
+      { q:"Chief Engineer's MARPOL duty?", a:"Responsible for accurate ORB completion, operational OWS, no illegal discharge, trained crew." },
+      { q:"Crew fatigue concern — how to handle?", a:"Acknowledge → review work/rest records → redistribute work → contact company for relief → document. MLC violation = PSC deficiency." },
+    ]
+  },
+]);
+
+setChapters("bt_project","📝","Final Year Project",
+  "Research methodology, technical writing, project management, presentation skills","Sem 8",[
+  { id:"proj_method", icon:"🔬", title:"Research Methodology",
+    desc:"Literature review, hypothesis, experimental design, data collection, statistical analysis",
+    formulas:[
+      { label:"Mean & Standard Deviation", eq:"x = Σxi/n;  σ = √[Σ(xi−x)²/(n−1)]", note:"Report experimental data as x ± σ." },
+    ], flashcards:[
+      { q:"Null hypothesis?", a:"H₀: assumption that there is no significant effect. Rejected if test statistic is in the critical region." },
+    ]
+  },
+  { id:"proj_write", icon:"📄", title:"Technical Report Writing",
+    desc:"IEEE/IME structure, abstract, citations, figures, appendices, peer review",
+    formulas:[], flashcards:[
+      { q:"What goes in an abstract?", a:"Purpose, methods, key results, main conclusions — all in ≤300 words. No references." },
+    ]
+  },
+]);
+
+setChapters("bt_elective","🔭","Advanced Elective Topics",
+  "Offshore engineering, polar operations, autonomous vessels, emerging technologies","Sem 8",[
+  { id:"elec_offshore", icon:"⛽", title:"Offshore Engineering",
+    desc:"FPSO systems, dynamic positioning (DP), riser systems, subsea equipment",
+    formulas:[], flashcards:[
+      { q:"What is DP (Dynamic Positioning)?", a:"System automatically maintains vessel position using thrusters controlled by DP computer with GPS/acoustic references." },
+    ]
+  },
+  { id:"elec_polar", icon:"🧊", title:"Polar Operations",
+    desc:"Polar Code (in force 2017), ice classes, low-temperature materials, polar safety",
+    formulas:[], flashcards:[
+      { q:"Polar Code key requirements?", a:"Safety (Part I-A) and Pollution Prevention (Part II-A). Certificate of Polar Ship required." },
+    ]
+  },
+  { id:"elec_autonomous", icon:"🤖", title:"Autonomous Vessels",
+    desc:"MASS, IMO regulatory framework, remote operations, cybersecurity",
+    formulas:[], flashcards:[
+      { q:"IMO MASS autonomy levels?", a:"Level 1: automated, seafarers on board. Level 2: remotely controlled with seafarers. Level 3: remotely controlled, no seafarers. Level 4: fully autonomous." },
+    ]
+  },
+]);
 
 })(); /* end BTechChapterSystem */
 
